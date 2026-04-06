@@ -106,14 +106,104 @@ for sec_name, data in audit_sections.items():
                 all_results.append({"Cat": sec_name, "Point": pt, "Statut": res, "Obs": obs})
                 st.divider()
 
-# --- 5. BILAN ---
-if st.button("📊 CALCULER LE SCORE FINAL"):
+from fpdf import FPDF
+import io
+
+# --- FONCTION DE GÉNÉRATION PDF ---
+class OptheliosPDF(FPDF):
+    def header(self):
+        if os.path.exists("logo.png"):
+            self.image("logo.png", 10, 8, 33)
+        self.set_font("Arial", "B", 15)
+        self.set_text_color(0, 74, 153) # Bleu Opthelios
+        self.cell(80)
+        self.cell(30, 10, "RAPPORT DE DIAGNOSTIC SOLAIRE", 0, 0, "C")
+        self.ln(20)
+
+    def footer(self):
+        self.set_y(-15)
+        self.set_font("Arial", "I", 8)
+        self.set_text_color(128)
+        self.cell(0, 10, f"Page {self.page_no()} | Opthelios - www.opthelios.com", 0, 0, "C")
+
+def generate_pdf(nom_site, type_inst, df, score):
+    pdf = OptheliosPDF()
+    pdf.add_page()
+    
+    # Infos client
+    pdf.set_font("Arial", "B", 12)
+    pdf.set_text_color(0)
+    pdf.cell(0, 10, f"Site : {nom_site}", ln=True)
+    pdf.cell(0, 10, f"Technicien : Moran GUILLERMIC", ln=True)
+    pdf.cell(0, 10, f"Date : {datetime.now().strftime('%d/%m/%Y')}", ln=True)
+    pdf.cell(0, 10, f"Installation : {type_inst}", ln=True)
+    
+    # Score Global
+    pdf.ln(5)
+    pdf.set_fill_color(255, 127, 0) # Orange Opthelios
+    pdf.set_text_color(255)
+    pdf.set_font("Arial", "B", 14)
+    pdf.cell(0, 12, f"SCORE DE CONFORMITÉ : {score:.1f}%", ln=True, align="C", fill=True)
+    pdf.ln(10)
+
+    # Tableau des points
+    pdf.set_text_color(0)
+    pdf.set_font("Arial", "B", 10)
+    pdf.set_fill_color(230, 230, 230)
+    pdf.cell(90, 10, "Point de controle", 1, 0, "C", True)
+    pdf.cell(30, 10, "Statut", 1, 0, "C", True)
+    pdf.cell(70, 10, "Observations", 1, 1, "C", True)
+
+    pdf.set_font("Arial", "", 9)
+    for index, row in df.iterrows():
+        if row["Statut"] != "N/A":
+            # Gestion des couleurs pour le statut
+            if row["Statut"] == "NC":
+                pdf.set_text_color(200, 0, 0) # Rouge
+            else:
+                pdf.set_text_color(0, 128, 0) # Vert
+            
+            # Calcul de la hauteur pour le texte long
+            start_y = pdf.get_y()
+            pdf.multi_cell(90, 8, row["Point"], border=1)
+            end_y = pdf.get_y()
+            h = end_y - start_y
+            
+            pdf.set_y(start_y)
+            pdf.set_x(100)
+            pdf.cell(30, h, row["Statut"], border=1, align="C")
+            pdf.cell(70, h, row["Observation"][:40], border=1, align="L")
+            pdf.ln(h)
+            pdf.set_text_color(0)
+
+    return pdf.output(dest='S')
+
+# --- SECTION BOUTON FINAL ---
+st.markdown("### 🏁 Finalisation de l'Audit")
+if st.button("📊 CALCULER LE BILAN ET GÉNÉRER LE RAPPORT PDF"):
     df = pd.DataFrame(all_results)
     df_app = df[df["Statut"] != "N/A"]
+    
     if not df_app.empty:
         conformes = len(df_app[df_app["Statut"] == "OK"])
         score = (conformes / len(df_app)) * 100
-        st.header(f"📈 Score Global : {score:.1f}%")
-        st.download_button("📥 Télécharger CSV", df.to_csv(index=False).encode('utf-8'), f"Audit_{nom_site}.csv", "text/csv")
+        
+        st.header(f"📈 Score de Conformité : {score:.1f}%")
+        
+        # Génération du fichier PDF en mémoire
+        pdf_data = generate_pdf(nom_site, type_inst, df, score)
+        
+        st.download_button(
+            label="📥 Télécharger le Rapport PDF Pro",
+            data=bytes(pdf_data),
+            file_name=f"Rapport_Opthelios_{nom_site}.pdf",
+            mime="application/pdf"
+        )
+        
+        # Petit récap visuel des NC pour Moran
+        df_nc = df_app[df_app["Statut"] == "NC"]
+        if not df_nc.empty:
+            st.error("### 🚩 Anomalies détectées")
+            st.table(df_nc[["Point", "Observation"]])
     else:
-        st.error("Aucune donnée saisie.")
+        st.warning("Veuillez renseigner des points avant de générer le PDF.")
