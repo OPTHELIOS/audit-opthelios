@@ -38,19 +38,12 @@ with st.sidebar:
     st.write("📞 06 45 57 10 42")
     st.write("🌐 [www.opthelios.com](https://www.opthelios.com)")
 
-# --- FIX DES VARIABLES DE COULEUR ---
+# --- VARIABLES DE COULEUR ---
 if theme == "🌙 Sombre":
-    bg_col = "#121212"
-    card_col = "#1E1E1E"
-    txt_col = "#FFFFFF"
-    brd_col = "#444444"
+    bg_col, card_col, txt_col, brd_col = "#121212", "#1E1E1E", "#FFFFFF", "#444444"
 else:
-    bg_col = "#F4F7F9"
-    card_col = "#FFFFFF"
-    txt_col = "#004a99"
-    brd_col = "#D0D0D0"
+    bg_col, card_col, txt_col, brd_col = "#F4F7F9", "#FFFFFF", "#004a99", "#D0D0D0"
 
-# Application du CSS avec les bonnes variables
 st.markdown(f"""
     <style>
     .stApp {{ background-color: {bg_col}; color: {txt_col}; }}
@@ -59,7 +52,7 @@ st.markdown(f"""
         background-color: {card_col} !important;
         border: 1px solid {brd_col} !important;
         border-radius: 8px !important;
-        margin-bottom: 10px;
+        margin-bottom: 15px;
     }}
     .stButton>button {{
         background-color: #ff7f00 !important;
@@ -68,6 +61,11 @@ st.markdown(f"""
         border-radius: 5px !important;
         width: 100%;
         height: 3em;
+    }}
+    /* Style spécifique pour les photos */
+    [data-testid="stCameraInput"] {{
+        border: 1px solid {brd_col} !important;
+        border-radius: 8px;
     }}
     </style>
     """, unsafe_allow_html=True)
@@ -105,21 +103,22 @@ def generate_pdf(nom, type_i, df, score):
     pdf.ln(5)
     
     pdf.set_fill_color(240, 240, 240)
-    pdf.set_font("Arial", "B", 10)
-    pdf.cell(100, 8, "Point de controle", 1, 0, 'L', True)
-    pdf.cell(25, 8, "Statut", 1, 0, 'C', True)
-    pdf.cell(65, 8, "Observations", 1, 1, 'L', True)
+    pdf.set_font("Arial", "B", 9)
+    pdf.cell(85, 8, "Point de controle", 1, 0, 'L', True)
+    pdf.cell(35, 8, "Statut", 1, 0, 'C', True)
+    pdf.cell(70, 8, "Observations", 1, 1, 'L', True)
     
-    pdf.set_font("Arial", "", 9)
+    pdf.set_font("Arial", "", 8)
     for _, row in df.iterrows():
-        h = 7
-        if row["Statut"] == "NC":
-            pdf.set_text_color(200, 0, 0)
-        else:
-            pdf.set_text_color(0)
-        pdf.cell(100, h, str(row["Point"])[:55], 1)
-        pdf.cell(25, h, row["Statut"], 1, 0, 'C')
-        pdf.cell(65, h, str(row["Obs"])[:35], 1, 1)
+        if row["Statut"] != "Sans objet":
+            h = 7
+            if row["Statut"] == "Non Conforme":
+                pdf.set_text_color(200, 0, 0)
+            else:
+                pdf.set_text_color(0)
+            pdf.cell(85, h, str(row["Point"])[:50], 1)
+            pdf.cell(35, h, row["Statut"], 1, 0, 'C')
+            pdf.cell(70, h, str(row["Obs"])[:45], 1, 1)
     return pdf.output()
 
 # --- 5. CORPS DE L'AUDIT ---
@@ -131,20 +130,41 @@ for sec, pts in audit_sections.items():
         continue
     with st.expander(f"{sec}"):
         for p in pts:
-            c1, c2, c3 = st.columns([3, 1, 2])
-            with c1: st.markdown(f"🔹 {p}")
-            res = c2.selectbox("Statut", ["OK", "NC", "N/A"], key=f"s_{p}", label_visibility="collapsed")
-            obs = c3.text_input("Notes", key=f"o_{p}", placeholder="Observation...", label_visibility="collapsed")
+            st.markdown(f"### 🔹 {p}")
+            c1, c2 = st.columns([1, 1])
+            
+            with c1:
+                res = st.radio(
+                    "Conformité", 
+                    ["Conforme", "Non Conforme", "Non Contrôlable", "Sans objet"], 
+                    key=f"s_{p}", 
+                    horizontal=True
+                )
+                obs = st.text_area("Observations / Recommandations", key=f"o_{p}", placeholder="RAS", height=80)
+            
+            with c2:
+                # Capture photo par ligne
+                img_file = st.camera_input(f"Photo : {p}", key=f"cam_{p}")
+                if img_file:
+                    st.success("Photo enregistrée")
+            
             all_results.append({"Point": p, "Statut": res, "Obs": obs})
+            st.divider()
 
 # --- 6. BILAN ---
 if st.button("📊 GÉNÉRER LE RAPPORT FINAL"):
     df_res = pd.DataFrame(all_results)
-    df_valide = df_res[df_res["Statut"] != "N/A"]
+    df_valide = df_res[df_res["Statut"] != "Sans objet"]
     
     if not df_valide.empty:
-        score_f = (len(df_valide[df_valide["Statut"] == "OK"]) / len(df_valide)) * 100
-        st.header(f"📈 Score : {score_f:.1f}%")
+        # Score calculé sur Conforme vs (Conforme + Non Conforme)
+        total_eval = len(df_valide[df_valide["Statut"].isin(["Conforme", "Non Conforme"])])
+        if total_eval > 0:
+            score_f = (len(df_valide[df_valide["Statut"] == "Conforme"]) / total_eval) * 100
+        else:
+            score_f = 0
+            
+        st.header(f"📈 Score de Conformité : {score_f:.1f}%")
         
         try:
             pdf_out = generate_pdf(nom_site, type_inst, df_valide, score_f)
@@ -157,9 +177,9 @@ if st.button("📊 GÉNÉRER LE RAPPORT FINAL"):
         except Exception as e:
             st.error(f"Erreur PDF : {e}")
             
-        df_nc = df_valide[df_valide["Statut"] == "NC"]
+        df_nc = df_valide[df_valide["Statut"] == "Non Conforme"]
         if not df_nc.empty:
-            st.error("### 🚩 Points non conformes")
+            st.error("### 🚩 Points Non Conformes")
             st.table(df_nc[["Point", "Obs"]])
     else:
         st.warning("Veuillez remplir au moins un point.")
