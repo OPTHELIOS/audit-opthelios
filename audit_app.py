@@ -38,16 +38,23 @@ with st.sidebar:
     st.write("📞 06 45 57 10 42")
     st.write("🌐 [www.opthelios.com](https://www.opthelios.com)")
 
-# Couleurs dynamiques
+# --- FIX DES VARIABLES DE COULEUR ---
 if theme == "🌙 Sombre":
-    bg_col, card_col, txt_col, brd_col = "#121212", "#1E1E1E", "#FFFFFF", "#444444"
+    bg_col = "#121212"
+    card_col = "#1E1E1E"
+    txt_col = "#FFFFFF"
+    brd_col = "#444444"
 else:
-    bg_col, card_col, txt_col, brd_col = "#F4F7F9", "#FFFFFF", "#004a99", "#D0D0D0"
+    bg_col = "#F4F7F9"
+    card_col = "#FFFFFF"
+    txt_col = "#004a99"
+    brd_col = "#D0D0D0"
 
+# Application du CSS avec les bonnes variables
 st.markdown(f"""
     <style>
-    .stApp {{ background-color: {bg_col}; color: {text_col}; }}
-    h1, h2, h3, p, span, label {{ color: {text_col} !important; }}
+    .stApp {{ background-color: {bg_col}; color: {txt_col}; }}
+    h1, h2, h3, p, span, label {{ color: {txt_col} !important; }}
     [data-testid="stExpander"] {{
         background-color: {card_col} !important;
         border: 1px solid {brd_col} !important;
@@ -91,12 +98,12 @@ def generate_pdf(nom, type_i, df, score):
     pdf = OptheliosPDF()
     pdf.add_page()
     pdf.set_font("Arial", "B", 12)
+    pdf.set_text_color(0)
     pdf.cell(0, 8, f"Site : {nom}", ln=True)
     pdf.cell(0, 8, f"Type : {type_i}", ln=True)
     pdf.cell(0, 8, f"Score Final : {score:.1f}%", ln=True)
     pdf.ln(5)
     
-    # Entête tableau
     pdf.set_fill_color(240, 240, 240)
     pdf.set_font("Arial", "B", 10)
     pdf.cell(100, 8, "Point de controle", 1, 0, 'L', True)
@@ -105,9 +112,11 @@ def generate_pdf(nom, type_i, df, score):
     
     pdf.set_font("Arial", "", 9)
     for _, row in df.iterrows():
-        # ICI : Vérification stricte des noms de colonnes "Point", "Statut", "Obs"
         h = 7
-        pdf.set_text_color(200, 0, 0) if row["Statut"] == "NC" else pdf.set_text_color(0)
+        if row["Statut"] == "NC":
+            pdf.set_text_color(200, 0, 0)
+        else:
+            pdf.set_text_color(0)
         pdf.cell(100, h, str(row["Point"])[:55], 1)
         pdf.cell(25, h, row["Statut"], 1, 0, 'C')
         pdf.cell(65, h, str(row["Obs"])[:35], 1, 1)
@@ -124,7 +133,6 @@ for sec, pts in audit_sections.items():
         for p in pts:
             c1, c2, c3 = st.columns([3, 1, 2])
             with c1: st.markdown(f"🔹 {p}")
-            # IMPORTANT : Les clés dans le dictionnaire final seront "Point", "Statut", "Obs"
             res = c2.selectbox("Statut", ["OK", "NC", "N/A"], key=f"s_{p}", label_visibility="collapsed")
             obs = c3.text_input("Notes", key=f"o_{p}", placeholder="Observation...", label_visibility="collapsed")
             all_results.append({"Point": p, "Statut": res, "Obs": obs})
@@ -138,12 +146,16 @@ if st.button("📊 GÉNÉRER LE RAPPORT FINAL"):
         score_f = (len(df_valide[df_valide["Statut"] == "OK"]) / len(df_valide)) * 100
         st.header(f"📈 Score : {score_f:.1f}%")
         
-        # Génération PDF sécurisée
         try:
             pdf_out = generate_pdf(nom_site, type_inst, df_valide, score_f)
-            st.download_button("📥 Télécharger le Rapport PDF", data=bytes(pdf_out), file_name=f"Audit_{nom_site}.pdf", mime="application/pdf")
+            st.download_button(
+                label="📥 Télécharger le Rapport PDF", 
+                data=bytes(pdf_out), 
+                file_name=f"Audit_{nom_site}.pdf", 
+                mime="application/pdf"
+            )
         except Exception as e:
-            st.error(f"Erreur lors de la création du PDF : {e}")
+            st.error(f"Erreur PDF : {e}")
             
         df_nc = df_valide[df_valide["Statut"] == "NC"]
         if not df_nc.empty:
