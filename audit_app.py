@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 import os
+from fpdf import FPDF
 
 # --- 1. CONFIGURATION DE LA PAGE ---
 st.set_page_config(
@@ -10,7 +11,7 @@ st.set_page_config(
     page_icon="☀️"
 )
 
-# --- 2. GESTION DU THÈME ---
+# --- 2. GESTION DU THÈME ET STYLE ---
 with st.sidebar:
     if os.path.exists("logo.png"):
         st.image("logo.png")
@@ -19,9 +20,16 @@ with st.sidebar:
     theme = st.radio("Mode d'affichage", ["☀️ Clair", "🌙 Sombre"], horizontal=True)
     
     st.divider()
-    st.header("📌 Identification")
+    st.header("📌 Identification Site")
     nom_site = st.text_input("📍 Nom du Site", placeholder="Ex: Résidence Horizon")
-    type_inst = st.selectbox("⚙️ Architecture", ["Pressurisé", "Auto-vidangeable"])
+    
+    st.subheader("⚙️ Configuration")
+    type_inst = st.selectbox("Type d'installation", [
+        "Chauffe-eau solaire collectif (CESC)", 
+        "Autovidangeable", 
+        "Sous-pression", 
+        "Thermosiphon"
+    ])
     
     st.divider()
     st.markdown("### 📞 Contact Opthelios")
@@ -32,178 +40,114 @@ with st.sidebar:
 
 # Couleurs dynamiques
 if theme == "🌙 Sombre":
-    bg_color, card_color, text_color, border_color = "#121212", "#1E1E1E", "#FFFFFF", "#333333"
+    bg_col, card_col, txt_col, brd_col = "#121212", "#1E1E1E", "#FFFFFF", "#444444"
 else:
-    bg_color, card_color, text_color, border_color = "#F8F9FA", "#FFFFFF", "#004a99", "#E0E0E0"
+    bg_col, card_col, txt_col, brd_col = "#F4F7F9", "#FFFFFF", "#004a99", "#D0D0D0"
 
-# Application du CSS (Correction de l'erreur précédente)
 st.markdown(f"""
     <style>
-    .stApp {{ background-color: {bg_color}; color: {text_color}; }}
-    h1, h2, h3, p, span, label {{ color: {text_color} !important; }}
+    .stApp {{ background-color: {bg_col}; color: {text_col}; }}
+    h1, h2, h3, p, span, label {{ color: {text_col} !important; }}
     [data-testid="stExpander"] {{
-        background-color: {card_color} !important;
-        border: 1px solid {border_color} !important;
-        border-radius: 12px !important;
-        margin-bottom: 15px;
+        background-color: {card_col} !important;
+        border: 1px solid {brd_col} !important;
+        border-radius: 8px !important;
+        margin-bottom: 10px;
     }}
     .stButton>button {{
         background-color: #ff7f00 !important;
         color: white !important;
         font-weight: bold !important;
-        border-radius: 8px !important;
+        border-radius: 5px !important;
         width: 100%;
+        height: 3em;
     }}
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. BASE DE DONNÉES DES 63 POINTS ---
+# --- 3. BASE DE DONNÉES DES POINTS ---
 audit_sections = {
-    "📄 Dossier & Élec": {
-        "img": "https://images.unsplash.com/photo-1581092334651-ddf26d9a1930?q=80&w=600",
-        "pts": ["Schéma d'exécution", "Schéma Électrique", "Analyse Fonctionnelle", "Raccordements électriques", "Conformité générale", "Mise à la terre"]
-    },
-    "☀️ Capteurs & Toiture": {
-        "img": "https://images.unsplash.com/photo-1509391366360-fe09a921cb35?q=80&w=600",
-        "pts": ["Absence vannes isolement circuit", "Traversée de toiture", "Supports conformes", "Raccordement capteurs", "Accès sécurisé", "Absence de masques", "Équilibrage par champ", "Équilibreurs lisibles", "Matériaux conformes"]
-    },
-    "💧 Réseau Hydraulique": {
-        "img": "https://images.unsplash.com/photo-1621905251189-08b45d6a269e?q=80&w=600",
-        "pts": ["Sens de circulation", "Vannes remplissage", "Dégazeur (Aller)", "Soupape sécurité", "Bidon récupération", "Circulateur sur retour", "Clapet anti-retour", "V3V fonctionnelles"]
-    },
-    "🎈 Expansion (Cond.)": {
-        "img": "https://images.unsplash.com/photo-1585333127302-729217a01d51?q=80&w=600",
-        "pts": ["Vase adapté", "Volume suffisant", "Dispositif isolement", "Raccordement retour", "Pression de gonflage"]
-    },
-    "🔄 Stockage & Échange": {
-        "img": "https://images.unsplash.com/photo-1595187121250-711e74f80838?q=80&w=600",
-        "pts": ["Contre-courant échangeur", "Vannes échangeur", "Puissance échangeur", "Local hors gel", "Passage porte", "Accès brides", "Raccordement ballons", "Absence clapet inter-ballons", "Vannes vidange", "Sonde haute", "Protection cathodique", "Calorifuge", "Lyres anti-thermosiphon", "Soupape ballon"]
-    },
-    "📊 Métrologie & Tests": {
-        "img": "https://images.unsplash.com/photo-1576086213369-97a306d36557?q=80&w=600",
-        "pts": ["Manomètre", "Débitmètre", "Sonde ensoleillement", "Seuil éclairement", "Sonde température capteur", "Sonde température Bas de ballon", "Prélèvement caloporteur", "Thermomètres échangeur", "Compteur eau froide", "Étanchéité conforme", "Pression épreuve", "Pression réglée", "Rinçage réseau", "Télécontrôleur", "Liaison distance"]
-    }
+    "📄 Documentation & Elec": ["Schéma d'exécution", "Schéma Electrique", "Analyse Fonctionnelle", "Raccordements", "Installation générale", "Mise à la terre"],
+    "☀️ Capteurs & Toiture": ["Absence de vannes d'isolement", "Traversée de toiture adaptée", "Supports conformes", "Raccordement capteurs", "Accès sécurisé", "Absence de masque"],
+    "⚖️ Equilibrage & Canalisations": ["Equilibrage champ", "Equilibreurs exploitables", "Matériaux conformes"],
+    "💧 Hydraulique Solaire": ["Sens de circulation", "Vannes remplissage", "Dégazeur Aller", "Soupape conforme", "Bidon récupération", "Circulateur Retour", "Clapet Retour", "V3V fonctionnelles"],
+    "🎈 Expansion": ["Vase adapté", "Volume suffisant", "Dispositif isolement", "Raccordement Retour", "Pression conforme"],
+    "📦 Stockage & Echangeur": ["Contre-courant", "Vannes échangeur", "Puissance échangeur", "Local hors gel", "Accès brides", "Raccordement ballons", "Vidange basse", "Protection cathodique", "Calorifuge", "Soupape sécurité"],
+    "🚿 Distribution ECS": ["Mitigeur présent", "Température points puisage", "Bouclage conforme", "Clapets anti-retour", "Bouclage calorifugé"],
+    "📊 Métrologie & Tests": ["Manomètre", "Débitmètre", "Sonde ensoleillement", "Sonde capteur", "Sonde ballon", "Prélèvement caloporteur", "Tests étanchéité", "Rinçage réseau", "Télécontrôleur"]
 }
 
-# --- 4. CORPS DE L'AUDIT ---
-st.title("☀️ Audit Diagnostic Solaire - Opthelios")
-
-all_results = []
-for sec_name, data in audit_sections.items():
-    if sec_name == "🎈 Expansion (Cond.)" and type_inst == "Auto-vidangeable":
-        continue
-
-    with st.expander(f"🔍 {sec_name}", expanded=False):
-        c_img, c_form = st.columns([1, 2.5])
-        with c_img:
-            st.image(data["img"], use_container_width=True)
-        with c_form:
-            for pt in data["pts"]:
-                col1, col2, col3 = st.columns([2, 1, 1.5])
-                with col1: st.write(f"**{pt}**")
-                with col2: res = st.selectbox("Statut", ["OK", "NC", "N/A"], key=f"st_{pt}", label_visibility="collapsed")
-                with col3: obs = st.text_input("Note", key=f"obs_{pt}", placeholder="Obs...", label_visibility="collapsed")
-                all_results.append({"Cat": sec_name, "Point": pt, "Statut": res, "Obs": obs})
-                st.divider()
-
-from fpdf import FPDF
-import io
-
-# --- FONCTION DE GÉNÉRATION PDF ---
+# --- 4. LOGIQUE PDF ---
 class OptheliosPDF(FPDF):
     def header(self):
         if os.path.exists("logo.png"):
-            self.image("logo.png", 10, 8, 33)
-        self.set_font("Arial", "B", 15)
-        self.set_text_color(0, 74, 153) # Bleu Opthelios
-        self.cell(80)
-        self.cell(30, 10, "RAPPORT DE DIAGNOSTIC SOLAIRE", 0, 0, "C")
-        self.ln(20)
+            self.image("logo.png", 10, 8, 30)
+        self.set_font("Arial", "B", 14)
+        self.set_text_color(0, 74, 153)
+        self.cell(0, 10, "RAPPORT DE DIAGNOSTIC SOLAIRE", ln=True, align="R")
+        self.ln(10)
 
-    def footer(self):
-        self.set_y(-15)
-        self.set_font("Arial", "I", 8)
-        self.set_text_color(128)
-        self.cell(0, 10, f"Page {self.page_no()} | Opthelios - www.opthelios.com", 0, 0, "C")
-
-def generate_pdf(nom_site, type_inst, df, score):
+def generate_pdf(nom, type_i, df, score):
     pdf = OptheliosPDF()
     pdf.add_page()
-    
-    # Infos client
     pdf.set_font("Arial", "B", 12)
-    pdf.set_text_color(0)
-    pdf.cell(0, 10, f"Site : {nom_site}", ln=True)
-    pdf.cell(0, 10, f"Technicien : Moran GUILLERMIC", ln=True)
-    pdf.cell(0, 10, f"Date : {datetime.now().strftime('%d/%m/%Y')}", ln=True)
-    pdf.cell(0, 10, f"Installation : {type_inst}", ln=True)
-    
-    # Score Global
+    pdf.cell(0, 8, f"Site : {nom}", ln=True)
+    pdf.cell(0, 8, f"Type : {type_i}", ln=True)
+    pdf.cell(0, 8, f"Score Final : {score:.1f}%", ln=True)
     pdf.ln(5)
-    pdf.set_fill_color(255, 127, 0) # Orange Opthelios
-    pdf.set_text_color(255)
-    pdf.set_font("Arial", "B", 14)
-    pdf.cell(0, 12, f"SCORE DE CONFORMITÉ : {score:.1f}%", ln=True, align="C", fill=True)
-    pdf.ln(10)
-
-    # Tableau des points
-    pdf.set_text_color(0)
-    pdf.set_font("Arial", "B", 10)
-    pdf.set_fill_color(230, 230, 230)
-    pdf.cell(90, 10, "Point de controle", 1, 0, "C", True)
-    pdf.cell(30, 10, "Statut", 1, 0, "C", True)
-    pdf.cell(70, 10, "Observations", 1, 1, "C", True)
-
-    pdf.set_font("Arial", "", 9)
-    for index, row in df.iterrows():
-        if row["Statut"] != "N/A":
-            # Gestion des couleurs pour le statut
-            if row["Statut"] == "NC":
-                pdf.set_text_color(200, 0, 0) # Rouge
-            else:
-                pdf.set_text_color(0, 128, 0) # Vert
-            
-            # Calcul de la hauteur pour le texte long
-            start_y = pdf.get_y()
-            pdf.multi_cell(90, 8, row["Point"], border=1)
-            end_y = pdf.get_y()
-            h = end_y - start_y
-            
-            pdf.set_y(start_y)
-            pdf.set_x(100)
-            pdf.cell(30, h, row["Statut"], border=1, align="C")
-            pdf.cell(70, h, row["Observation"][:40], border=1, align="L")
-            pdf.ln(h)
-            pdf.set_text_color(0)
-
-    return pdf.output(dest='S')
-
-# --- SECTION BOUTON FINAL ---
-st.markdown("### 🏁 Finalisation de l'Audit")
-if st.button("📊 CALCULER LE BILAN ET GÉNÉRER LE RAPPORT PDF"):
-    df = pd.DataFrame(all_results)
-    df_app = df[df["Statut"] != "N/A"]
     
-    if not df_app.empty:
-        conformes = len(df_app[df_app["Statut"] == "OK"])
-        score = (conformes / len(df_app)) * 100
+    # Entête tableau
+    pdf.set_fill_color(240, 240, 240)
+    pdf.set_font("Arial", "B", 10)
+    pdf.cell(100, 8, "Point de controle", 1, 0, 'L', True)
+    pdf.cell(25, 8, "Statut", 1, 0, 'C', True)
+    pdf.cell(65, 8, "Observations", 1, 1, 'L', True)
+    
+    pdf.set_font("Arial", "", 9)
+    for _, row in df.iterrows():
+        # ICI : Vérification stricte des noms de colonnes "Point", "Statut", "Obs"
+        h = 7
+        pdf.set_text_color(200, 0, 0) if row["Statut"] == "NC" else pdf.set_text_color(0)
+        pdf.cell(100, h, str(row["Point"])[:55], 1)
+        pdf.cell(25, h, row["Statut"], 1, 0, 'C')
+        pdf.cell(65, h, str(row["Obs"])[:35], 1, 1)
+    return pdf.output()
+
+# --- 5. CORPS DE L'AUDIT ---
+st.title("☀️ Diagnostic Solaire Opthelios")
+
+all_results = []
+for sec, pts in audit_sections.items():
+    if sec == "🎈 Expansion" and type_inst == "Autovidangeable":
+        continue
+    with st.expander(f"{sec}"):
+        for p in pts:
+            c1, c2, c3 = st.columns([3, 1, 2])
+            with c1: st.markdown(f"🔹 {p}")
+            # IMPORTANT : Les clés dans le dictionnaire final seront "Point", "Statut", "Obs"
+            res = c2.selectbox("Statut", ["OK", "NC", "N/A"], key=f"s_{p}", label_visibility="collapsed")
+            obs = c3.text_input("Notes", key=f"o_{p}", placeholder="Observation...", label_visibility="collapsed")
+            all_results.append({"Point": p, "Statut": res, "Obs": obs})
+
+# --- 6. BILAN ---
+if st.button("📊 GÉNÉRER LE RAPPORT FINAL"):
+    df_res = pd.DataFrame(all_results)
+    df_valide = df_res[df_res["Statut"] != "N/A"]
+    
+    if not df_valide.empty:
+        score_f = (len(df_valide[df_valide["Statut"] == "OK"]) / len(df_valide)) * 100
+        st.header(f"📈 Score : {score_f:.1f}%")
         
-        st.header(f"📈 Score de Conformité : {score:.1f}%")
-        
-        # Génération du fichier PDF en mémoire
-        pdf_data = generate_pdf(nom_site, type_inst, df, score)
-        
-        st.download_button(
-            label="📥 Télécharger le Rapport PDF Pro",
-            data=bytes(pdf_data),
-            file_name=f"Rapport_Opthelios_{nom_site}.pdf",
-            mime="application/pdf"
-        )
-        
-        # Petit récap visuel des NC pour Moran
-        df_nc = df_app[df_app["Statut"] == "NC"]
+        # Génération PDF sécurisée
+        try:
+            pdf_out = generate_pdf(nom_site, type_inst, df_valide, score_f)
+            st.download_button("📥 Télécharger le Rapport PDF", data=bytes(pdf_out), file_name=f"Audit_{nom_site}.pdf", mime="application/pdf")
+        except Exception as e:
+            st.error(f"Erreur lors de la création du PDF : {e}")
+            
+        df_nc = df_valide[df_valide["Statut"] == "NC"]
         if not df_nc.empty:
-            st.error("### 🚩 Anomalies détectées")
-            st.table(df_nc[["Point", "Observation"]])
+            st.error("### 🚩 Points non conformes")
+            st.table(df_nc[["Point", "Obs"]])
     else:
-        st.warning("Veuillez renseigner des points avant de générer le PDF.")
+        st.warning("Veuillez remplir au moins un point.")
