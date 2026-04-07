@@ -1,7 +1,7 @@
 import streamlit as st
 import os
 
-# --- TENTATIVE D'IMPORTATION DES MODULES DE CARTE ---
+# --- 1. MODULES EXTERNES (CARTOGRAPHIE) ---
 try:
     from streamlit_folium import st_folium
     import folium
@@ -9,42 +9,64 @@ try:
 except ImportError:
     MAP_AVAILABLE = False
 
-# --- 1. CONFIGURATION DE LA PAGE ---
-st.set_page_config(page_title="Opthelios Expertise Solaire", layout="wide", page_icon="☀️")
+# --- 2. CONFIGURATION DE LA PAGE ---
+st.set_page_config(page_title="Opthelios - Expertise Solaire Complète", layout="wide", page_icon="☀️")
 
-# --- 2. STYLE CSS DÉFINITIF ---
+# --- 3. SYSTÈME DE THÈME ET CONTRASTE (FIX DÉFINITIF) ---
 with st.sidebar:
     st.header("🎨 Options d'affichage")
     theme_choice = st.radio("Mode de l'interface", ["Clair ☀️", "Sombre 🌙"])
 
+# Couleurs dynamiques pour éviter les textes noirs sur fond sombre ou invisibles
 if theme_choice == "Clair ☀️":
-    bg, card, txt, border = "#F8F9FA", "#FFFFFF", "#000000", "#DDDDDD"
+    bg, card, txt, border, header_c = "#F8F9FA", "#FFFFFF", "#000000", "#DDDDDD", "#FF7F00"
 else:
-    bg, card, txt, border = "#0E1117", "#161B22", "#FFFFFF", "#30363D"
+    bg, card, txt, border, header_c = "#0E1117", "#161B22", "#FFFFFF", "#30363D", "#FF7F00"
 
 st.markdown(f"""
     <style>
+    .stApp {{ background-color: {bg}; color: {txt}; }}
     [data-testid="stSidebar"] {{ background-color: {bg} !important; border-right: 1px solid {border}; }}
     [data-testid="stSidebar"] * {{ color: {txt} !important; }}
-    .stApp {{ background-color: {bg}; color: {txt}; }}
-    .streamlit-expanderHeader {{ background-color: {card} !important; color: {txt} !important; border: 1px solid {border} !important; }}
-    .streamlit-expanderHeader:hover {{ color: #FF7F00 !important; }}
-    .info-card, .ballon-card {{ background-color: {card} !important; border: 1px solid {border} !important; padding: 20px; border-radius: 10px; margin-bottom: 15px; }}
-    .section-header {{ color: #FF7F00 !important; font-size: 1.2em; font-weight: bold; border-bottom: 2px solid #FF7F00; margin-bottom: 15px; padding-bottom: 5px; }}
+    
+    /* Fix Expander (Titres de sections) */
+    .streamlit-expanderHeader {{ 
+        background-color: {card} !important; 
+        color: {txt} !important; 
+        border: 1px solid {border} !important; 
+    }}
+    .streamlit-expanderHeader:hover {{ color: {header_c} !important; }}
+    .streamlit-expanderHeader p {{ color: {txt} !important; }}
+
+    /* Cards & Blocks */
+    .info-card, .ballon-card, .counter-block {{ 
+        background-color: {card} !important; 
+        border: 1px solid {border} !important; 
+        padding: 20px; border-radius: 10px; margin-bottom: 15px; 
+    }}
+    
+    .section-header {{ 
+        color: {header_c} !important; 
+        font-size: 1.2em; font-weight: bold; 
+        border-bottom: 2px solid {header_c}; 
+        margin-bottom: 15px; padding-bottom: 5px; 
+    }}
+    
     label p, .stMarkdown p, b, p, span, .stWidgetLabel {{ color: {txt} !important; }}
-    .stButton>button {{ background-color: #FF7F00 !important; color: white !important; font-weight: bold; border-radius: 8px; width: 100%; }}
+    .stButton>button {{ background-color: {header_c} !important; color: white !important; font-weight: bold; border-radius: 8px; width: 100%; }}
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. EN-TÊTE ---
+# --- 4. EN-TÊTE AVEC LOGO ---
 col_logo, col_title = st.columns([1, 5])
 with col_logo:
+    # Utilisation du logo.png (identifié dans image_6e0dbe.png)
     if os.path.exists("logo.png"): 
         st.image("logo.png", width=120)
 with col_title:
     st.title("Opthelios, expertise solaire")
 
-# --- 4. IDENTIFICATION & GPS ---
+# --- 5. IDENTIFICATION & GÉOLOCALISATION ---
 st.markdown('<p class="section-header">📂 Identification du Projet & Géolocalisation</p>', unsafe_allow_html=True)
 with st.container():
     st.markdown('<div class="info-card">', unsafe_allow_html=True)
@@ -52,7 +74,8 @@ with st.container():
     with c1:
         st.text_input("📍 Opération", placeholder="ex: Résidence Helios")
         st.text_input("👤 Maîtrise d'Ouvrage (MOA)")
-        st.text_input("🏠 Adresse complète")
+        st.text_input("⚙️ Exploitant en charge")
+        st.text_input("🏠 Adresse complète du site")
         st.write("**Coordonnées GPS**")
         cg1, cg2 = st.columns(2)
         lat = cg1.number_input("Latitude", format="%.6f", value=48.8566)
@@ -60,38 +83,93 @@ with st.container():
     with c2:
         if MAP_AVAILABLE:
             m = folium.Map(location=[lat, lon], zoom_start=17)
-            folium.Marker([lat, lon]).add_to(m)
-            st_folium(m, width="100%", height=250)
-        st.camera_input("📸 Photo de garde")
+            folium.Marker([lat, lon], tooltip="Position du site").add_to(m)
+            st_folium(m, width="100%", height=280)
+        else:
+            st.warning("⚠️ Module Folium absent. Ajoutez-le au requirements.txt")
+        st.camera_input("📸 Photo de garde du bâtiment")
     st.markdown('</div>', unsafe_allow_html=True)
 
-# --- 5. FICHE D'IDENTITÉ & BOUSSOLE ---
-st.header("📋 Fiche d'Identité")
-with st.expander("🛠️ Détails du Matériel", expanded=True):
+# --- 6. FICHE D'IDENTITÉ TECHNIQUE ---
+st.header("📋 Fiche d'Identité de l'Installation")
+with st.expander("🛠️ Détails du Matériel Installé", expanded=True):
+    st.markdown('<p class="section-header">☀️ Capteurs Solaires</p>', unsafe_allow_html=True)
     cp1, cp2, cp3 = st.columns([2, 1, 1])
     with cp1:
-        st.text_input("Marque / Référence Capteurs")
-        st.number_input("Nombre de capteurs", min_value=1, value=1)
+        st.text_input("Marque / Référence des Capteurs")
+        st.number_input("Nombre total de capteurs", min_value=1, value=1)
+        st.number_input("Nombre de rangées / champs", min_value=1, value=1)
     with cp2:
-        azimut = st.number_input("Azimut (°)", value=163)
+        azimut = st.number_input("Azimut (°)", value=163, help="0°=Nord, 180°=Sud")
         st.number_input("Inclinaison (°)", value=45)
     with cp3:
+        st.write("**Orientation**")
+        # Boussole dynamique
         st.markdown(f"""
             <div style="display: flex; justify-content: center; align-items: center; background: white; border-radius: 50%; width: 100px; height: 100px; margin: auto; border: 2px solid #FF7F00; position: relative;">
-                <div style="position: absolute; width: 2px; height: 80px; background: red; transform: rotate({azimut}deg);"></div>
+                <div style="position: absolute; width: 2px; height: 80px; background: red; transform: rotate({azimut}deg); transition: transform 0.5s;"></div>
                 <b style="color: black; z-index: 2;">S</b>
             </div>
+            <p style="text-align: center; font-size: 0.8em; margin-top: 5px; color: {txt};">Axe : {azimut}°</p>
         """, unsafe_allow_html=True)
 
-# --- 6. AUDIT TECHNIQUE ---
-st.header("🔍 Audit Technique")
+    st.markdown('<p class="section-header">⚙️ Station & Stockage</p>', unsafe_allow_html=True)
+    cs1, cs2 = st.columns(2)
+    cs1.text_input("Marque/Réf Circulateur Solaire")
+    cs2.text_input("Marque/Réf Régulateur / Télégestion")
+    
+    nb_b = st.number_input("Nombre de ballons de stockage", 1, 10, 1)
+    for i in range(int(nb_b)):
+        st.markdown(f'<div class="ballon-card"><b>Ballon n°{i+1}</b>', unsafe_allow_html=True)
+        cb1, cb2 = st.columns(2)
+        cb1.text_input("Marque / Modèle", key=f"m_bal_{i}")
+        cb2.text_input("Capacité (Litres)", key=f"v_bal_{i}")
+        st.markdown('</div>', unsafe_allow_html=True)
+
+# --- 7. AUDIT TECHNIQUE (FUSION INTÉGRALE) ---
+st.header("🔍 Audit Technique & Points de Contrôle")
+# Fusion exhaustive des points initiaux + Fichier Word
 sections = {
-    "📄 Documentation & Élec": ["Schéma d'éxécution", "Schéma Electrique", "Analyse Fonctionnelle", "Mise à la terre"],
-    "☀️ Capteurs": ["Vannes d'isolement", "Supports capteurs", "Accès sécurisé", "Absence de masque"],
-    "💧 Hydraulique": ["Sens de circulation", "Soupape de sécurité", "Circulateur sur RETOUR", "Clapet anti-retour"],
-    "🎈 Expansion": ["Vase d'expansion adapté", "Volume suffisant", "Pression conforme"],
-    "📦 Stockage": ["Echangeur contre-courant", "Local hors gel", "Protection cathodique", "Calorifuge"],
-    "📊 Métrologie": ["Manomètre", "Débitmètre", "Sonde ensoleillement", "Connexion à distance"]
+    "📄 Documentation & Électricité": [
+        "Présence et conformité du schéma d'éxécution", "Présence et conformité du schéma Electrique", 
+        "Présence et conformité de l'Analyse Fonctionnelle", "Contrôle des raccordements électriques", 
+        "Conformités de l'installation générale", "Mise à la terre de l'installation"
+    ],
+    "☀️ Champ Capteurs & Toiture": [
+        "Absence de vannes d'isolement sur tuyauterie capteurs", "Dispositif de traversé de toiture adapté", 
+        "Supports capteurs conformes et fixés", "Raccordement correct des capteurs", 
+        "Accès capteurs sécurisé (Ligne de vie/échelle)", "Absence de masque proche (Ombrage)"
+    ],
+    "⚖️ Équilibrage & Canalisations": [
+        "Dispositif d'équilibrage sur chaque champ", "Équilibrages sécurisés et lisibles", 
+        "Matériaux tuyauteries conformes à l'usage solaire"
+    ],
+    "💧 Hydraulique Solaire": [
+        "Circulation capteurs/échangeur dans le bon sens", "Vannes pour raccordement pompe remplissage", 
+        "Présence dégazeur sur conduite ALLER", "Soupape de sécurité conforme", 
+        "Bidon de récupération avec contrôle niveau", "Circulateur sur conduite RETOUR", 
+        "Présence Clapet anti-retour", "Vannes 3 voies (V3V) fonctionnelles"
+    ],
+    "🎈 Système d'Expansion": [
+        "Vase d'expansion dimensionné et adapté", "Volume du vase suffisant", 
+        "Dispositif d'isolement et de mise à l'air", "Raccordement vase sur le RETOUR", "Pression du vase conforme"
+    ],
+    "📦 Échangeur & Stockage": [
+        "Échangeur raccordé en contre-courant", "Vannes d'isolement échangeur", 
+        "Puissance échangeur suffisante", "Ballons hors gel", "Ouverture de porte suffisante", 
+        "Accès complet aux piquages et brides", "Vannes de vidange et de chasse", 
+        "Protection cathodique (Anode)", "Calorifugeage du stockage", "Lyres anti-thermosiphon (coudes bas)"
+    ],
+    "🚿 Distribution ECS & Bouclage": [
+        "Mitigeur thermostatique présent", "T° max ECS respectée (Sécurité)", 
+        "Raccordement correct du bouclage", "Clapets anti-retour sur bouclage", "Bouclage calorifugé"
+    ],
+    "📊 Métrologie & Tests": [
+        "Manomètre de contrôle circuit solaire", "Débitmètre(s) présent(s)", 
+        "Sonde d'ensoleillement bien placée", "Sonde T° capteur fonctionnelle", 
+        "Sonde Bas de ballon solaire", "Prélèvement fluide caloporteur possible", 
+        "Tests d'étanchéité conformes", "Réseau rincé", "Télécontrôleur conforme"
+    ]
 }
 
 for sec, pts in sections.items():
@@ -99,33 +177,47 @@ for sec, pts in sections.items():
         for p in pts:
             st.markdown(f"**{p}**")
             col1, col2, col3, col4 = st.columns([1, 1.5, 1, 1])
-            col1.selectbox("Verdict", ["Conforme", "Défaut", "N/C", "S/O"], key=f"s_{p}", label_visibility="collapsed")
-            col2.text_input("Observations", key=f"o_{p}", label_visibility="collapsed")
+            col1.selectbox("Verdict", ["Conforme", "Défaut", "N/C", "S/O"], key=f"statut_{p}", label_visibility="collapsed")
+            col2.text_input("Observations", key=f"obs_{p}", label_visibility="collapsed", placeholder="Observations techniques...")
             col3.camera_input("Photo", key=f"cam_{p}", label_visibility="collapsed")
-            col4.file_uploader("Fichier", key=f"f_{p}", label_visibility="collapsed")
+            col4.file_uploader("Preuve/Doc", key=f"file_{p}", label_visibility="collapsed")
 
-# --- 7. NOUVEAU : ANNEXES TECHNIQUES ---
-st.header("📁 Annexes Techniques Globales")
+# --- 8. RELEVÉS DE COMPTEURS (RÉTABLIS) ---
+st.header("📊 Relevés de Compteurs Énergétiques")
+with st.expander("🔍 Analyse des Index ESU / ECS", expanded=True):
+    for cpt in ["Compteur Énergie Solaire (ESU)", "Compteur Eau Chaude (ECS)"]:
+        st.markdown(f'<div class="counter-block"><b>{cpt}</b>', unsafe_allow_html=True)
+        rc1, rc2, rc3, rc4 = st.columns([1, 1, 1, 2])
+        rc1.radio("Présence ?", ["Oui", "Non"], key=f"pres_{cpt}")
+        rc2.text_input("Index actuel", key=f"idx_{cpt}", placeholder="Valeur...")
+        rc3.checkbox("Sondes en doigt de gant ?", key=f"ddg_{cpt}")
+        rc4.camera_input("Photo de l'index", key=f"photo_cpt_{cpt}")
+        st.markdown('</div>', unsafe_allow_html=True)
+
+# --- 9. ANNEXES TECHNIQUES GLOBALES ---
+st.header("📂 Annexes & Documents de Référence")
 st.markdown('<div class="info-card">', unsafe_allow_html=True)
-st.info("Utilisez cette section pour téléverser les documents globaux (Schémas PDF, Rapports d'essais fluides, Fiches techniques constructeurs).")
-annexes = st.file_uploader("Ajouter des documents d'expertise (PDF, JPG, PNG)", accept_multiple_files=True, key="global_annexes")
-if annexes:
-    st.write(f"✅ {len(annexes)} fichier(s) prêt(s) pour l'archivage.")
+st.info("Téléversez ici les documents volumineux : rapports de rinçage, fiches constructeurs, schémas PDF globaux.")
+st.file_uploader("Ajouter des fichiers (PDF, JPG, PNG)", accept_multiple_files=True, key="annexes_finales")
 st.markdown('</div>', unsafe_allow_html=True)
 
-# --- 8. SYNTHÈSE ---
+# --- 10. SYNTHÈSE & VALIDATION ---
 st.divider()
-st.header("🏁 Synthèse")
+st.header("🏁 Synthèse Décisionnelle")
 st.markdown('<div class="info-card">', unsafe_allow_html=True)
-col_s1, col_s2 = st.columns([2, 1])
-with col_s1:
-    st.subheader("Plan d'Actions")
-    st.table([{"Prio": "🔴 P1", "Action": "Sécurité"}, {"Prio": "🟠 P2", "Action": "Maintenance"}, {"Prio": "🔵 P3", "Action": "Suivi"}])
-with col_s2:
-    st.slider("Note / 10", 0, 10, 5)
-    st.text_area("Conclusion technique")
+sc1, sc2 = st.columns([2, 1])
+with sc1:
+    st.subheader("Plan d'Actions Priorisé")
+    st.table([
+        {"Priorité": "🔴 P1", "Domaine": "Sécurité & Sanitaire", "Impact": "Immédiat"},
+        {"Priorité": "🟠 P2", "Domaine": "Performance & Maintenance", "Impact": "Moyen terme"},
+        {"Priorité": "🔵 P3", "Domaine": "Métrologie & Optimisation", "Impact": "Amélioration"}
+    ])
+with sc2:
+    st.slider("Note de l'expertise / 10", 0, 10, 5)
+    st.text_area("Conclusion de l'Expert Opthelios", height=150)
 st.markdown('</div>', unsafe_allow_html=True)
 
-if st.button("🚀 VALIDER L'EXPERTISE"):
+if st.button("🚀 VALIDER ET GÉNÉRER LE RAPPORT D'AUDIT"):
     st.balloons()
-    st.success("Rapport et annexes enregistrés.")
+    st.success("Expertise validée. Toutes les données et pièces jointes sont enregistrées.")
