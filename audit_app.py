@@ -185,3 +185,20 @@ for sec, pts in sections_data.items():
 if st.button("🚀 CLÔTURER L'EXPERTISE"):
     st.balloons()
     st.success("Rapport validé.")
+
+st.header("🏁 Synthèse & Plan d'Actions")
+with st.container():
+    st.markdown('<div class="info-card">', unsafe_allow_html=True)
+    st.subheader("Résumé Décisionnel")
+    st.write("L'audit met en évidence un besoin de maintenance sur les organes de sécurité.")
+    
+    # Tableau de synthèse
+    data = [
+        {"Priorité": "🔴 P1", "Action": "Vase d'expansion / Soupape", "Impact": "Sécurité & Intégrité"},
+        {"Priorité": "🟠 P2", "Action": "Remplacement Fluide / Calorifuge", "Impact": "Performance"},
+        {"Priorité": "🔵 P3", "Action": "Métrologie / Télégestion", "Impact": "Suivi & Économies"}
+    ]
+    st.table(data)
+    
+    st.text_area("Conclusion Générale de l'Expert", placeholder="Rédigez ici votre avis d'expert final...")
+    st.markdown('</div>', unsafe_allow_html=True)
