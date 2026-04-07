@@ -8,11 +8,12 @@ st.set_page_config(page_title="Opthelios Expert v4.5", layout="wide", page_icon=
 if 'extra_counters' not in st.session_state:
     st.session_state.extra_counters = []
 
-# --- 2. GESTION DU THÈME & STYLE ---
+# --- 2. GESTION DU THÈME & STYLE (Correctif Contraste) ---
 with st.sidebar:
     st.header("🎨 Options d'affichage")
     theme_choice = st.radio("Mode de l'interface", ["Clair ☀️", "Sombre 🌙"])
 
+# Variables de couleurs dynamiques pour éviter l'illisibilité
 if theme_choice == "Clair ☀️":
     bg_app, bg_card, txt_main, border_col = "#F8F9FA", "#FFFFFF", "#1A1C1E", "#DDDDDD"
 else:
@@ -27,7 +28,7 @@ st.markdown(f"""
         border: 1px solid {border_col} !important; 
         padding: 20px; border-radius: 10px; margin-bottom: 15px; color: {txt_main} !important;
     }}
-    /* Forcer la couleur des labels pour éviter les textes invisibles */
+    /* Forcer la visibilité des textes et labels */
     label p, .stMarkdown p, b {{ color: {txt_main} !important; }}
     .stButton>button {{ background-color: #FF7F00 !important; color: white !important; font-weight: bold !important; border-radius: 20px !important; }}
     </style>
@@ -53,7 +54,7 @@ with st.container():
         date_visite = st.date_input("📅 Date du diagnostic")
 
     with col_id2:
-        st.write("🗺️ **Localisation (cliquez pour ajuster)**")
+        st.write("🗺️ **Localisation interactive**")
         m = folium.Map(location=[lat, lon], zoom_start=16)
         folium.Marker([lat, lon], tooltip="Installation").add_to(m)
         st_folium(m, width="100%", height=250)
@@ -75,17 +76,18 @@ with st.expander("🛠️ Configuration Matérielle", expanded=True):
         nb_rangees = st.number_input("Nombre de rangées (champs)", min_value=1, value=1)
         st.number_input("Inclinaison (°)", value=45)
     with cp3:
-        azimut = st.number_input("Azimut (°)", value=0, help="0=Sud, -90=Est, 90=Ouest")
-        direction = "Sud" if -22.5 < azimut <= 22.5 else "SO" if 22.5 < azimut <= 67.5 else "O" if 67.5 < azimut <= 112.5 else "SE" if -67.5 < azimut <= -22.5 else "E"
-        st.info(f"🧭 Orientation : {direction}")
+        azimut = st.number_input("Azimut (°)", value=0)
+        st.info(f"🧭 Azimut : {azimut}°")
 
     # Station Solaire
     st.markdown('<p class="section-header">🔌 Station Solaire & Régulation</p>', unsafe_allow_html=True)
     cs1, cs2 = st.columns(2)
     with cs1:
-        st.text_input("Circulateur : Marque", key="mcir"); st.text_input("Circulateur : Référence", key="rcir")
+        st.text_input("Circulateur : Marque", key="mcir")
+        st.text_input("Circulateur : Référence", key="rcir")
     with cs2:
-        st.text_input("Régulateur : Marque", key="mreg"); st.text_input("Régulateur : Référence", key="rreg")
+        st.text_input("Régulateur : Marque", key="mreg")
+        st.text_input("Régulateur : Référence", key="rreg")
 
     # Stockage
     st.markdown('<p class="section-header">📦 Stockage Solaire</p>', unsafe_allow_html=True)
@@ -100,13 +102,13 @@ with st.expander("🛠️ Configuration Matérielle", expanded=True):
 
     # État visuel
     st.markdown('<p class="section-header">🌟 État Général du Matériel</p>', unsafe_allow_html=True)
-    score = st.select_slider("Note de 0 (HS) à 10 (Neuf)", options=list(range(11)), value=5)
+    score = st.select_slider("Note de 0 à 10", options=list(range(11)), value=5)
     colors = ["#FF0000", "#FF4500", "#FF8C00", "#FFD700", "#ADFF2F", "#32CD32"]
     st.markdown(f'<div style="background-color:{colors[min(score//2, 5)]}; height:12px; border-radius:6px;"></div>', unsafe_allow_html=True)
 
-# --- 5. AUDIT TECHNIQUE (INTEGRATION WORD) ---
+# --- 5. AUDIT TECHNIQUE COMPLET (Intégration Document Word) ---
 st.divider()
-st.header("🔍 Audit Technique Complet")
+st.header("🔍 Audit Technique")
 
 sections_data = {
     "📄 Documentation & Élec": ["Schéma d'éxécution", "Schéma Electrique", "Analyse Fonctionnelle", "Raccordements électriques", "Installation générale", "Mise à la terre"],
@@ -139,7 +141,8 @@ for sec, pts in sections_data.items():
     with st.expander(f"📁 {sec}"):
         for p in pts:
             if p == "COMPTEURS":
-                display_c("Compteur ESU", "esu"); display_c("Compteur ECS (Vecs)", "vecs")
+                display_c("Compteur ESU", "esu")
+                display_c("Compteur ECS (Vecs)", "vecs")
             else:
                 st.markdown(f"**{p}**")
                 c1, c2, c3 = st.columns([1, 2, 1])
@@ -147,23 +150,24 @@ for sec, pts in sections_data.items():
                 c2.text_input("Note", key=f"o_{p}", label_visibility="collapsed", placeholder="Observations...")
                 c3.camera_input("Photo", key=f"ph_{p}", label_visibility="collapsed")
 
-# --- 6. SYNTHÈSE FINALE ---
+# --- 6. SYNTHÈSE & PLAN D'ACTIONS ---
 st.divider()
-st.header("🏁 Synthèse & Plan d'Actions")
+st.header("🏁 Synthèse Décisionnelle")
 st.markdown('<div class="info-card">', unsafe_allow_html=True)
 col_s1, col_s2 = st.columns([2, 1])
 with col_s1:
-    st.subheader("Plan d'Intervention")
+    st.subheader("Plan d'Intervention Priorisé")
     plan = [
-        {"Priorité": "🔴 P1", "Action": "Organes de Sécurité (Vase, Soupape, Mitigeur)", "Impact": "Indispensable"},
-        {"Priorité": "🟠 P2", "Action": "Maintenance Fluide & Calorifuge", "Impact": "Performance"},
-        {"Priorité": "🔵 P3", "Action": "Métrologie & Télégestion", "Impact": "Suivi"}
+        {"Priorité": "🔴 P1 (Immédiat)", "Action": "Sécurité (Vase, Soupape, Mitigeur)", "Impact": "Risque majeur"},
+        {"Priorité": "🟠 P2 (Maintenance)", "Action": "Fluide Caloporteur & Calorifuge", "Impact": "Performance"},
+        {"Priorité": "🔵 P3 (Amélioration)", "Action": "Métrologie & Télégestion", "Impact": "Suivi expert"}
     ]
     st.table(plan)
 with col_s2:
-    st.metric("Santé de l'installation", f"{score}/10")
-    st.text_area("Conclusion finale", height=150)
+    st.metric("Indice de Santé Global", f"{score}/10")
+    st.text_area("Conclusion & Recommandations", height=150)
 st.markdown('</div>', unsafe_allow_html=True)
 
-if st.button("🚀 GÉNÉRER LE RAPPORT"):
-    st.balloons(); st.success("Expertise validée !")
+if st.button("🚀 VALIDER L'EXPERTISE"):
+    st.balloons()
+    st.success("Rapport finalisé et prêt pour exportation.")
