@@ -80,12 +80,12 @@ with st.expander("🛠️ Caractéristiques Matérielles", expanded=True):
 st.divider()
 st.header("🔍 Audit Technique")
 
+# Dictionnaire corrigé et vérifié
 sections = {
     "📄 Documentation et conformité électrique": [
         "Schéma d'exécution", "Schéma Electrique", "Analyse Fonctionnelle", 
         "Raccordements", "Mise à la terre", "Signalétique de sécurité", "Livret d'entretien"
     ],
-    
     "☀️ Capteurs & Toit": [
         "Intégrité des vitrages (OK / Fissuré / Condensation)",
         "Absorbeur (Normal / Décoloré / Corrosion)",
@@ -103,11 +103,9 @@ sections = {
         "Accès sécurisé", 
         "Isolants UV"
     ],
-    
     "🧪 Fluide Caloporteur": [
         "Prélèvement fluide", "pH du fluide", "Protection Antigel", "Analyse visuelle (Coloration)"
     ],
-    
     "💧 Circuit primaire solaire": [
         "Sens circulation", 
         "Vannes remplissage", 
@@ -116,3 +114,45 @@ sections = {
         "Bidon récupération", 
         "Vase d'Expansion : Pression de gonflage (bar)",
         "Vase d'Expansion : Pression statique du circuit (bar)",
+        "Vase d'Expansion : Vérification de la membrane (État : OK / HS)",
+        "Disconnecteur"
+    ],
+    "📦 Stockage & Echangeur": [
+        "Echangeur (Entartrage)", "Protection cathodique", "Calorifugeage", 
+        "Lyres anti-thermosiphon", "Soupape sécurité"
+    ],
+    "📊 Métrologie & Régul": [
+        "Manomètre", "Débitmètre", "Sonde T1", "Sonde T2", "Protection Surchauffe", "Delta T"
+    ]
+}
+
+all_results = []
+for sec, pts in sections.items():
+    with st.expander(f"📁 {sec}"):
+        for p in pts:
+            st.markdown(f"**{p}**")
+            c_res, c_obs, c_cam = st.columns([1.5, 3, 1])
+            with c_res:
+                res = st.selectbox("Verdict", ["Conforme", "Non Conforme", "N/C", "S/O"], key=f"s_{p}")
+            with c_obs:
+                # Placeholders dynamiques pour guider la saisie selon le point
+                ph_text = "Saisir état..."
+                if "Vitrages" in p: ph_text = "Ex: Condensation sur 2 capteurs"
+                if "Inclinaison" in p: ph_text = "Ex: 42° / Sud-Ouest"
+                if "gonflage (bar)" in p: ph_text = "Ex: 2.5 bar (mesuré isolé)"
+                if "statique" in p: ph_text = "Ex: 2.0 bar (à froid)"
+                if "membrane" in p: ph_text = "Ex: Membrane poreuse (HS)"
+                
+                obs = st.text_input("Note / Mesure", key=f"o_{p}", placeholder=ph_text)
+            with c_cam:
+                pic = st.camera_input("📷", key=f"c_{p}")
+            all_results.append({"Section": sec, "Point": p, "Statut": res, "Obs": obs})
+
+# --- 7. GÉNÉRATION ---
+st.divider()
+if st.button("🚀 GÉNÉRER LE RAPPORT FINAL"):
+    if not nom_site:
+        st.error("Nom du site requis.")
+    else:
+        st.balloons()
+        st.success(f"Audit de {nom_site} validé.")
