@@ -32,8 +32,7 @@ st.markdown(f"""
     [data-testid="stExpander"] {{ background-color: {card} !important; border: 1px solid {brd} !important; border-radius: 8px !important; }}
     h1, h2, h3, h4, label, p, span {{ color: {txt} !important; }}
     .stButton>button {{ background-color: #ff7f00 !important; color: white !important; font-weight: bold; border-radius: 8px; height: 3.5em; }}
-    /* Style pour les groupes de compteurs */
-    .counter-block {{ border-left: 4px solid #ff7f00; padding-left: 15px; margin: 10px 0; background-color: {bg}; border-radius: 5px; }}
+    .counter-block {{ border-left: 4px solid #ff7f00; padding: 15px; margin: 10px 0; background-color: {bg}; border-radius: 5px; border: 1px solid {brd}; }}
     </style>
     """, unsafe_allow_html=True)
 
@@ -48,7 +47,7 @@ with col_top1:
 with col_top2:
     photo_main = st.camera_input("📸 Photo de garde", key="main_pic")
 
-# --- 5. FICHE D'IDENTITÉ ALLÉGÉE ---
+# --- 5. FICHE D'IDENTITÉ MATÉRIEL ---
 st.divider()
 st.header("📋 Fiche d'Identité Matériel")
 
@@ -59,15 +58,14 @@ def row_mat(label, key):
     return v, p
 
 with st.expander("🛠️ Caractéristiques Matérielles", expanded=True):
-    col_mat1, col_mat2 = st.columns(2)
-    with col_mat1:
+    c_m1, c_m2 = st.columns(2)
+    with c_m1:
         st.markdown("**☀️ Production Solaire**")
         m_cap, p_cap = row_mat("Marque/Réf Capteurs", "cap")
-        orient_val = st.selectbox("Orientation", ["Sud", "Sud-Est", "Sud-Ouest", "Est", "Ouest"])
-        inclin_val = st.number_input("Inclinaison (°)", value=45)
+        orient = st.selectbox("Orientation", ["Sud", "Sud-Est", "Sud-Ouest", "Est", "Ouest"])
+        inclin = st.number_input("Inclinaison (°)", value=45)
         m_circ, p_circ = row_mat("Marque/Réf Circulateur", "circ")
-        
-    with col_mat2:
+    with c_m2:
         st.markdown("**📦 Stockage & Appoint**")
         m_bal, p_bal = row_mat("Marque/Réf Ballons", "bal")
         vol_bal = st.number_input("Volume total (L)", value=1000, step=100)
@@ -79,38 +77,66 @@ st.divider()
 st.header("🔍 Audit Technique")
 
 sections = {
-    "📄 Documentation et conformité électrique": [
-        "Schéma d'exécution", "Schéma Electrique", "Analyse Fonctionnelle", "Raccordements", "Mise à la terre", "Signalétique de sécurité"
-    ],
-    "☀️ Capteurs & Toit": [
-        "Intégrité des vitrages", "Absorbeur", "Fixation châssis", "Étanchéité toiture", "Masques solaires", "Sondes capteurs : Position & Fixation", "Accès sécurisé"
-    ],
+    "📄 Documentation et conformité électrique": ["Schéma d'exécution", "Schéma Electrique", "Mise à la terre", "Signalétique"],
+    "☀️ Capteurs & Toit": ["Intégrité vitrages", "Absorbeur", "Fixation châssis", "Étanchéité toiture", "Sondes capteurs"],
     "🧪 Fluide Caloporteur": ["pH du fluide", "Protection Antigel", "Analyse visuelle"],
-    "💧 Circuit primaire solaire": [
-        "Sens circulation", "Vannes remplissage", "Dégazeur Aller", "Vase d'Expansion : Pression de gonflage (bar)", "Disconnecteur"
-    ],
-    "📦 Stockage & Echangeur": ["Echangeur (Entartrage)", "Protection cathodique", "Calorifugeage", "Soupape sécurité"],
+    "💧 Circuit primaire solaire": ["Sens circulation", "Vannes remplissage", "Dégazeur", "Vase d'Expansion (bar)"],
+    "📦 Stockage & Echangeur": ["Echangeur", "Protection cathodique", "Calorifugeage", "Soupape"],
     "📊 Régulation solaire et métrologie": [
-        "Manomètre", 
-        "Débitmètre", 
-        "Sonde Capteur (T1)", 
-        "Sonde Ballon (T2)", 
-        "Consigne de température max",
-        "Paramètres de décharge thermique",
-        "Compteur énergie solaire utile (ESU)",
-        "Compteur ECS (Vecs)"
+        "Manomètre", "Débitmètre", "Sonde Capteur (T1)", "Sonde Ballon (T2)", 
+        "Consigne température max", "Paramètres de décharge", 
+        "Compteur énergie solaire utile (ESU)", "Compteur ECS (Vecs)"
     ]
 }
 
 all_results = []
+
 for sec, pts in sections.items():
     with st.expander(f"📁 {sec}"):
         for p in pts:
-            # Traitement spécial pour les compteurs ESU et ECS
+            # --- CAS SPÉCIFIQUE COMPTEURS (ESU / ECS) ---
             if "Compteur" in p:
-                st.markdown(f"### 📊 {p}")
-                with st.container():
-                    st.markdown('<div class="counter-block">', unsafe_allow_html=True)
-                    c1, c2, c3 = st.columns([1, 1, 1])
-                    with c1:
-                        pres = st.radio(f"Présent ({p})", ["Oui", "Non"],
+                st.markdown(f"**### 📊 {p}**")
+                st.markdown('<div class="counter-block">', unsafe_allow_html=True)
+                c1, c2, c3 = st.columns([1, 1, 1])
+                with c1:
+                    pres = st.radio(f"Présent ? ({p})", ["Oui", "Non"], key=f"pres_{p}", horizontal=True)
+                    conf = st.radio(f"Conforme ? ({p})", ["Oui", "Non"], key=f"conf_{p}", horizontal=True)
+                with c2:
+                    if "ESU" in p:
+                        idx = st.text_input("Index (kWh ou MWh)", key=f"idx_{p}")
+                    vol = st.text_input("Volume (m3)", key=f"vol_{p}")
+                with c3:
+                    pic = st.camera_input(f"Photo {p}", key=f"cam_{p}")
+                st.markdown('</div>', unsafe_allow_html=True)
+                all_results.append({"Point": p, "Présent": pres, "Conforme": conf})
+            
+            # --- CAS GÉNÉRAL DES POINTS DE CONTRÔLE ---
+            else:
+                st.markdown(f"**{p}**")
+                c_res, c_obs, c_cam = st.columns([1.5, 3, 1])
+                
+                # Logique des labels
+                opt = ["Conforme", "Non Conforme", "N/C", "S/O"]
+                lbl = "Verdict"
+                if "Sonde" in p:
+                    lbl, opt = "Cohérent", ["Oui", "Non", "N/C"]
+                elif "décharge" in p:
+                    lbl, opt = "Statut", ["Activé", "Désactivé", "S/O"]
+
+                with c_res:
+                    res = st.selectbox(lbl, opt, key=f"s_{p}")
+                with c_obs:
+                    obs = st.text_input("Note / Mesure", key=f"o_{p}")
+                with c_cam:
+                    cam = st.camera_input("📷", key=f"c_{p}")
+                all_results.append({"Section": sec, "Point": p, "Statut": res, "Obs": obs})
+
+# --- 7. GÉNÉRATION ---
+st.divider()
+if st.button("🚀 GÉNÉRER LE RAPPORT FINAL"):
+    if not nom_site:
+        st.error("Veuillez saisir le nom du site.")
+    else:
+        st.balloons()
+        st.success(f"Audit de {nom_site} validé.")
