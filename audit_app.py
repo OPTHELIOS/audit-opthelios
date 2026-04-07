@@ -2,7 +2,7 @@ import streamlit as st
 import os
 
 # --- 1. CONFIGURATION ---
-st.set_page_config(page_title="Opthelios Expert v4.1", layout="wide", page_icon="☀️")
+st.set_page_config(page_title="Opthelios Expert v4.2", layout="wide", page_icon="☀️")
 
 if 'extra_counters' not in st.session_state:
     st.session_state.extra_counters = []
@@ -12,18 +12,35 @@ with st.sidebar:
     st.header("🎨 Affichage")
     theme_choice = st.radio("Mode de l'interface", ["Clair ☀️", "Sombre 🌙"])
 
-bg_card = "#FFFFFF" if theme_choice == "Clair ☀️" else "#161B22"
-border_col = "#DDDDDD" if theme_choice == "Clair ☀️" else "#30363D"
+# Variables de couleurs dynamiques
+if theme_choice == "Clair ☀️":
+    bg_app, bg_card, txt_main, border_col = "#F8F9FA", "#FFFFFF", "#1A1C1E", "#DDDDDD"
+else:
+    bg_app, bg_card, txt_main, border_col = "#0E1117", "#161B22", "#FFFFFF", "#30363D"
 
 st.markdown(f"""
     <style>
+    .stApp {{ background-color: {bg_app}; color: {txt_main}; }}
     .section-header {{ color: #FF7F00 !important; font-size: 1.2em; font-weight: bold; border-bottom: 2px solid #FF7F00; margin-bottom: 15px; padding-bottom: 5px; }}
-    .ballon-card, .counter-block, .info-card {{ background-color: {bg_card}; border: 1px solid {border_col}; padding: 20px; border-radius: 10px; margin-bottom: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }}
+    
+    /* Correction Critique : Lisibilité des blocs compteurs */
+    .ballon-card, .counter-block, .info-card {{ 
+        background-color: {bg_card} !important; 
+        border: 1px solid {border_col} !important; 
+        padding: 20px; 
+        border-radius: 10px; 
+        margin-bottom: 15px; 
+        color: {txt_main} !important;
+    }}
+    .counter-block b, .counter-block label, .counter-block p, .counter-block span {{
+        color: {txt_main} !important;
+    }}
+    
     .stButton>button {{ background-color: #FF7F00 !important; color: white !important; font-weight: bold !important; border-radius: 20px !important; width: 100%; }}
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. IDENTIFICATION DU PROJET (VERSION PROFESSIONNELLE) ---
+# --- 3. IDENTIFICATION DU PROJET ---
 st.title("☀️ Diagnostic Expert Opthelios")
 st.markdown('<p class="section-header">📂 Identification du Projet & Intervenants</p>', unsafe_allow_html=True)
 
@@ -36,16 +53,15 @@ with st.container():
         exploit_site = st.text_input("⚙️ Exploitant / Mainteneur", placeholder="ex: Dalkia, Engie...")
     with c_p2:
         adr_site = st.text_input("🏠 Adresse complète")
-        coordonnees_gps = st.text_input("🌐 Coordonnées GPS", placeholder="Latitude, Longitude")
+        coordonnees_gps = st.text_input("🌐 Coordonnées GPS")
         date_visite = st.date_input("📅 Date du diagnostic")
     with c_p3:
         photo_main = st.camera_input("📸 Cliché de garde")
     st.markdown('</div>', unsafe_allow_html=True)
 
-# --- 4. FICHE D'IDENTITÉ MATÉRIEL ---
-st.header("📋 Fiche d'Identité Technique")
-with st.expander("🛠️ Configuration de l'installation", expanded=True):
-    # CAPTEURS
+# --- 4. FICHE D'IDENTITÉ TECHNIQUE ---
+st.header("📋 Fiche d'Identité")
+with st.expander("🛠️ Configuration Matérielle", expanded=True):
     st.markdown('<p class="section-header">☀️ Capteurs Solaires</p>', unsafe_allow_html=True)
     cp1, cp2, cp3 = st.columns([2, 2, 1.5])
     with cp1:
@@ -54,25 +70,20 @@ with st.expander("🛠️ Configuration de l'installation", expanded=True):
         st.selectbox("Type", ["Capteurs plans", "Capteurs tubulaires", "Moquette solaire"], key="t_cap")
     with cp2:
         nb_capteurs = st.number_input("Nombre de capteurs", min_value=1, value=1)
-        nb_rangees = st.number_input("Nombre de rangées (champs)", min_value=1, value=1)
+        nb_rangees = st.number_input("Nombre de rangées", min_value=1, value=1)
         st.number_input("Inclinaison (°)", value=45)
     with cp3:
         azimut = st.number_input("Azimut (°)", value=0)
-        st.info(f"🧭 Direction : {azimut}°")
+        st.info(f"🧭 Orientation : {azimut}°")
 
-    # STATION SOLAIRE
     st.markdown('<p class="section-header">🔌 Station Solaire & Régulation</p>', unsafe_allow_html=True)
     cs1, cs2 = st.columns(2)
-    with cs1:
-        st.text_input("Circulateur Solaire (Marque/Réf)", key="m_circ")
-    with cs2:
-        st.text_input("Régulateur Solaire (Marque/Réf)", key="m_reg")
+    with cs1: st.text_input("Circulateur Solaire (Marque/Réf)", key="m_circ")
+    with cs2: st.text_input("Régulateur Solaire (Marque/Réf)", key="m_reg")
 
-    # STOCKAGE (Multi-ballons)
-    st.markdown('<p class="section-header">📦 Ballons de Stockage</p>', unsafe_allow_html=True)
-    nb_ballons = st.number_input("Nombre de ballons solaires", min_value=1, value=1)
+    st.markdown('<p class="section-header">📦 Stockage Solaire</p>', unsafe_allow_html=True)
+    nb_ballons = st.number_input("Nombre de ballons", min_value=1, value=1)
     if nb_ballons >= 2: st.selectbox("Raccordement", ["En série", "En parallèle"], key="r_hydra")
-    
     for i in range(int(nb_ballons)):
         st.markdown(f'<div class="ballon-card"><b>Ballon n°{i+1}</b>', unsafe_allow_html=True)
         cb1, cb2, cb3 = st.columns(3)
@@ -83,17 +94,15 @@ with st.expander("🛠️ Configuration de l'installation", expanded=True):
         cb2.selectbox("État visuel", ["Correct", "Défaut", "HS"], key=f"etb_{i}")
         st.markdown('</div>', unsafe_allow_html=True)
 
-    # ÉTAT GLOBAL
-    st.markdown('<p class="section-header">🌟 Indice de Santé Matériel</p>', unsafe_allow_html=True)
-    score = st.select_slider("Note de 0 à 10", options=list(range(11)), value=5)
+    st.markdown('<p class="section-header">🌟 État Général</p>', unsafe_allow_html=True)
+    score = st.select_slider("Note d'état visuel", options=list(range(11)), value=5)
     colors = ["#FF0000", "#FF4500", "#FF8C00", "#FFD700", "#ADFF2F", "#32CD32"]
     st.markdown(f'<div style="background-color:{colors[min(score//2, 5)]}; height:10px; border-radius:5px;"></div>', unsafe_allow_html=True)
 
-# --- 5. AUDIT TECHNIQUE (FUSION WORD + SCRIPT) ---
+# --- 5. AUDIT TECHNIQUE (Points Doc Word ) ---
 st.divider()
-st.header("🔍 Audit Technique Complet")
+st.header("🔍 Audit Technique")
 
-# Fusion des points du document Word 
 sections_data = {
     "📄 Documentation & Élec": [
         "Schéma d'éxécution (présence et conformité)", "Schéma Electrique (présence et conformité)", 
@@ -105,49 +114,40 @@ sections_data = {
         "Supports capteurs conformes", "Raccordement correct des capteurs", "Accès capteurs sécurisé",
         "Absence de masque proche", "Matériaux (tuyauteries) conformes à l'usage", "Isolants UV"
     ],
-    "💧 Hydraulique & Circuit Primaire": [
+    "💧 Hydraulique": [
         "Circulation capteurs et échangeur dans le bon sens", "Vannes pour raccordement pompe de remplissage",
         "Dégazeur sur la conduite ALLER capteur", "Soupape de sécurité présente et conforme",
         "Bidon de récupération avec contrôle de niveau", "Circulateur sur le RETOUR capteurs",
         "Clapet anti-retour RETOUR capteurs", "Vannes 3 voies (V3V) fonctionnelles"
     ],
-    "🎈 Système d'Expansion": [
+    "🎈 Expansion": [
         "Présence d'un vase d'expansion adapté", "Volume du vase d'expansion suffisant",
         "Dispositif d'isolement et mise à l'air pour vase", "Raccordement du vase sur le RETOUR",
         "Pression du vase conforme"
     ],
-    "🔄 Échangeur Solaire Externe": [
-        "Raccordement de l'échangeur en contre-courant", "Vannes d'isolement en entrée/sortie échangeur",
-        "Puissance de l'échangeur suffisante"
+    "🔄 Échangeur": [
+        "Raccordement de l'échangeur en contre-courant", "Vannes d'isolement entrée/sortie", "Puissance suffisante"
     ],
-    "📦 Ballons de Stockage": [
-        "Ballons dans local fermé, hors gel", "Ouverture de porte permettant passage ballon",
-        "Accès complet aux piquages et brides", "Raccordement ballon(s) conforme",
-        "Absence Clapet anti-retour entre les ballons", "Vannes de vidange et chasse en partie basse",
-        "Prise de température en partie haute", "Protection cathodique ballon",
-        "Calorifuge du stockage", "Coudes vers le bas sur les piquages (lyres)"
+    "📦 Stockage": [
+        "Ballons hors gel", "Passage de porte", "Accès piquages/brides", "Raccordement conforme",
+        "Absence Clapet AR entre ballons", "Vidange/Chasse bas", "Prise T° haut", "Protection cathodique",
+        "Calorifuge", "Lyres anti-thermosiphon"
     ],
-    "🚿 Distribution ECS": [
-        "Mitigeur présent", "Température max ECS respectée aux puisages",
-        "Raccordement correct du bouclage", "Présence des clapets anti-retour", "Bouclage calorifugé"
+    "🚿 Distribution": [
+        "Mitigeur présent", "T° max respectée", "Bouclage conforme", "Clapets AR", "Calorifuge distribution"
     ],
     "🧪 Fluide & Tests": [
-        "pH du fluide", "Protection Antigel (°C)", "Analyse visuelle",
-        "Tests d'étanchéité conforme", "Pression d'épreuve recommandée/réglée", "Réseau rincé"
+        "pH", "Antigel (°C)", "Analyse visuelle", "Étanchéité conforme", "Pression d'épreuve", "Réseau rincé"
     ],
     "📊 Métrologie & Télécontrôle": [
-        "Manomètre de contrôle circuit solaire", "Débitmètre(s) présent(s)",
-        "Sonde d'ensoleillement bien placée", "Sonde de température capteur bien placée",
-        "Sonde de température Bas de ballon bien placée", "Prélèvement du liquide caloporteur",
-        "Thermomètre en entrée/sortie échangeur", "Compteur volumétrique Eau froide",
+        "Manomètre circuit solaire", "Débitmètre(s)", "Sonde ensoleillement", "Sonde T° capteur",
+        "Sonde T° bas ballon", "Prélèvement caloporteur", "Thermomètre échangeur", "Compteur Eau froide",
         "Télécontrôleur conforme", "Connexion à distance fonctionnelle", "COMPTEURS"
     ]
 }
 
-# Ajout dynamique équilibrage
 if nb_rangees > 1:
-    sections_data["☀️ Capteurs & Toiture"].insert(6, "Dispositif d'équilibrage sur chaque champ")
-    sections_data["☀️ Capteurs & Toiture"].insert(7, "Dispositifs d'équilibrages sécurisés et exploitables")
+    sections_data["☀️ Capteurs & Toiture"].extend(["Équilibrage sur chaque champ", "Équilibrages exploitables"])
 
 def display_c(label, type_c, key_id):
     st.markdown(f'<div class="counter-block"><b>📊 {label}</b>', unsafe_allow_html=True)
@@ -166,9 +166,8 @@ for sec, pts in sections_data.items():
     with st.expander(f"📁 {sec}"):
         for p in pts:
             if p == "COMPTEURS":
-                display_c("Compteur ESU", "ESU", "f_esu")
-                display_c("Compteur ECS (Vecs)", "Vecs", "f_vecs")
-                # Gestion extras
+                display_c("Compteur ESU", "ESU", "esu_f")
+                display_c("Compteur ECS (Vecs)", "Vecs", "vecs_f")
                 ca1, ca2 = st.columns(2)
                 n_n = ca1.text_input("Nom nouveau compteur", key="n_n")
                 n_t = ca2.selectbox("Type", ["Calorimètre", "Volumétrique", "Électrique"], key="n_t")
