@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 import os
-from fpdf import FPDF
 
 # --- 1. CONFIGURATION ---
 st.set_page_config(page_title="Opthelios Expert v3", layout="wide", page_icon="☀️")
@@ -14,7 +13,6 @@ with st.sidebar:
     st.header("🎨 Interface")
     theme = st.radio("Mode", ["☀️ Clair", "🌙 Sombre"], horizontal=True)
     
-    # Sidebar Bleu Nuit Opthelios pour une lisibilité parfaite
     sidebar_bg = "#001f3f" if theme == "☀️ Clair" else "#000000"
     st.markdown(f"""
         <style>
@@ -80,7 +78,6 @@ with st.expander("🛠️ Caractéristiques Matérielles", expanded=True):
 st.divider()
 st.header("🔍 Audit Technique")
 
-# Dictionnaire corrigé et vérifié
 sections = {
     "📄 Documentation et conformité électrique": [
         "Schéma d'exécution", "Schéma Electrique", "Analyse Fonctionnelle", 
@@ -99,30 +96,30 @@ sections = {
         "Purgeurs solaires avec vannes d'isolement", 
         "Sondes capteurs : Position & Fixation", 
         "Sondes capteurs : Jonction & Câblage", 
-        "Traversée de toiture", 
-        "Accès sécurisé", 
-        "Isolants UV"
+        "Traversée de toiture", "Accès sécurisé", "Isolants UV"
     ],
     "🧪 Fluide Caloporteur": [
         "Prélèvement fluide", "pH du fluide", "Protection Antigel", "Analyse visuelle (Coloration)"
     ],
     "💧 Circuit primaire solaire": [
-        "Sens circulation", 
-        "Vannes remplissage", 
-        "Dégazeur Aller", 
-        "Soupape conforme", 
-        "Bidon récupération", 
-        "Vase d'Expansion : Pression de gonflage (bar)",
+        "Sens circulation", "Vannes remplissage", "Dégazeur Aller", "Soupape conforme", 
+        "Bidon récupération", "Vase d'Expansion : Pression de gonflage (bar)",
         "Vase d'Expansion : Pression statique du circuit (bar)",
-        "Vase d'Expansion : Vérification de la membrane (État : OK / HS)",
-        "Disconnecteur"
+        "Vase d'Expansion : Vérification de la membrane (État : OK / HS)", "Disconnecteur"
     ],
     "📦 Stockage & Echangeur": [
         "Echangeur (Entartrage)", "Protection cathodique", "Calorifugeage", 
         "Lyres anti-thermosiphon", "Soupape sécurité"
     ],
-    "📊 Métrologie & Régul": [
-        "Manomètre", "Débitmètre", "Sonde T1", "Sonde T2", "Protection Surchauffe", "Delta T"
+    "📊 Régulation solaire et métrologie": [
+        "Manomètre", 
+        "Débitmètre", 
+        "Sonde Capteur (T1)", 
+        "Sonde Ballon (T2)", 
+        "Consigne de température max",
+        "Paramètres de décharge thermique",
+        "Compteur d'énergie thermique",
+        "Delta T"
     ]
 }
 
@@ -132,20 +129,37 @@ for sec, pts in sections.items():
         for p in pts:
             st.markdown(f"**{p}**")
             c_res, c_obs, c_cam = st.columns([1.5, 3, 1])
+            
+            # --- LOGIQUE DE RÉPONSE ADAPTATIVE ---
+            verdict_label = "Verdict"
+            options = ["Conforme", "Non Conforme", "N/C", "S/O"]
+            
+            if "Sonde" in p:
+                verdict_label = "Valeur cohérente"
+                options = ["Oui", "Non", "N/C"]
+            elif "décharge thermique" in p:
+                verdict_label = "Statut"
+                options = ["Activé", "Désactivé", "S/O"]
+            elif "Consigne" in p or "Compteur" in p:
+                verdict_label = "État"
+                options = ["OK", "À vérifier", "Absent"]
+
             with c_res:
-                res = st.selectbox("Verdict", ["Conforme", "Non Conforme", "N/C", "S/O"], key=f"s_{p}")
+                res = st.selectbox(verdict_label, options, key=f"s_{p}")
+            
             with c_obs:
-                # Placeholders dynamiques pour guider la saisie selon le point
-                ph_text = "Saisir état..."
-                if "Vitrages" in p: ph_text = "Ex: Condensation sur 2 capteurs"
-                if "Inclinaison" in p: ph_text = "Ex: 42° / Sud-Ouest"
-                if "gonflage (bar)" in p: ph_text = "Ex: 2.5 bar (mesuré isolé)"
-                if "statique" in p: ph_text = "Ex: 2.0 bar (à froid)"
-                if "membrane" in p: ph_text = "Ex: Membrane poreuse (HS)"
+                # Placeholders spécifiques
+                ph_text = "Saisir note..."
+                if "Sonde" in p: ph_text = "Température lue (ex: 45.2°C)"
+                elif "Consigne" in p: ph_text = "Valeur en °C"
+                elif "Compteur" in p: ph_text = "Index actuel (kWh ou MWh)"
+                elif "gonflage" in p: ph_text = "ex: 2.5 bar"
                 
                 obs = st.text_input("Note / Mesure", key=f"o_{p}", placeholder=ph_text)
+            
             with c_cam:
                 pic = st.camera_input("📷", key=f"c_{p}")
+                
             all_results.append({"Section": sec, "Point": p, "Statut": res, "Obs": obs})
 
 # --- 7. GÉNÉRATION ---
