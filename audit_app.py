@@ -1,165 +1,199 @@
 import streamlit as st
 import os
 
-# --- 1. CONFIGURATION & STATE ---
+# --- 1. CONFIGURATION ---
 st.set_page_config(page_title="Opthelios Expert v4", layout="wide", page_icon="☀️")
 
 if 'extra_counters' not in st.session_state:
     st.session_state.extra_counters = []
 
-# --- 2. STYLE CSS AVANCÉ (Interface Claire & Professionnelle) ---
-st.markdown("""
-    <style>
-    /* Fond et polices */
-    .stApp { background-color: #FDFDFD; color: #1E1E1E; }
-    
-    /* Cartes blanches avec ombre légère */
-    div[data-testid="stExpander"], .custom-card {
-        background-color: white !important;
-        border: 1px solid #E0E0E0 !important;
-        border-radius: 12px !important;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.02) !important;
-        padding: 15px;
-        margin-bottom: 15px;
-    }
+# --- 2. GESTION DU THÈME (SIDEBAR) ---
+with st.sidebar:
+    st.header("🎨 Affichage")
+    # Cette option permet de basculer proprement sans casser le CSS
+    theme_choice = st.radio("Mode de l'interface", ["Clair ☀️", "Sombre 🌙"])
 
-    /* Titres et Accents */
-    h1, h2, h3 { color: #2C3E50 !important; font-family: 'Helvetica Neue', sans-serif; }
-    .section-header { 
-        color: #FF7F00; 
-        font-size: 1.1em; 
-        font-weight: 700; 
+# --- 3. CSS ADAPTATIF (ZÉRO CONFLIT) ---
+# On définit des variables qui s'adaptent au choix de l'utilisateur
+if theme_choice == "Clair ☀️":
+    bg_card = "#FFFFFF"
+    txt_col = "#1A1C1E"
+    border_col = "#DDDDDD"
+else:
+    bg_card = "#161B22"
+    txt_col = "#FFFFFF"
+    border_col = "#30363D"
+
+st.markdown(f"""
+    <style>
+    .section-header {{ 
+        color: #FF7F00 !important; 
+        font-size: 1.2em; 
+        font-weight: bold; 
         text-transform: uppercase; 
         border-bottom: 2px solid #FF7F00; 
-        margin: 20px 0 15px 0;
+        margin: 25px 0 15px 0;
         padding-bottom: 5px;
-    }
-
-    /* Boutons Orange Opthelios */
-    .stButton>button {
+    }}
+    .ballon-card, .counter-block {{
+        background-color: {bg_card};
+        border: 1px solid {border_col};
+        padding: 20px;
+        border-radius: 10px;
+        margin-bottom: 15px;
+    }}
+    .stButton>button {{
         background-color: #FF7F00 !important;
         color: white !important;
-        border-radius: 25px !important;
-        border: none !important;
-        font-weight: 600 !important;
-        transition: 0.3s;
-    }
-    .stButton>button:hover { transform: scale(1.02); box-shadow: 0 4px 15px rgba(255,127,0,0.3); }
-
-    /* Score de santé (Couleurs) */
-    .health-bar { height: 20px; border-radius: 10px; margin-top: 10px; }
+        font-weight: bold !important;
+        border-radius: 20px !important;
+    }}
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. EN-TÊTE ---
+# --- 4. EN-TÊTE ---
 st.title("☀️ Diagnostic Expert Opthelios")
-c_top1, c_top2 = st.columns([2, 1])
-with c_top1:
-    nom_site = st.text_input("📍 Opération", placeholder="Ex: Résidence Helios")
+c1, c2 = st.columns([2, 1])
+with c1:
+    nom_site = st.text_input("📍 Opération", placeholder="Nom du projet...")
     adr_site = st.text_input("🏠 Adresse / GPS")
-with c_top2:
+with c2:
     photo_main = st.camera_input("📸 Photo de garde")
 
-# --- 4. FICHE D'IDENTITÉ ---
-st.header("📋 Fiche d'Identité de l'Installation")
+# --- 5. FICHE D'IDENTITÉ (RESTAURÉE ET COMPLÉTÉE) ---
+st.header("📋 Fiche d'Identité")
 
-with st.expander("🛠️ Configuration Technique détaillée", expanded=True):
+with st.expander("🛠️ Configuration de l'installation", expanded=True):
     
-    # --- CAPTEURS SOLAIRES ---
+    # CAPTEURS
     st.markdown('<p class="section-header">☀️ Capteurs Solaires</p>', unsafe_allow_html=True)
-    c1, c2, c3 = st.columns([2, 2, 1.5])
-    with c1:
+    cp1, cp2, cp3 = st.columns([2, 2, 1.5])
+    with cp1:
         st.text_input("Marque", key="m_cap")
         st.text_input("Référence", key="r_cap")
-        st.selectbox("Type de capteurs", ["Capteurs plans", "Capteurs tubulaires", "Moquette solaire"], key="t_cap")
-    with c2:
-        st.number_input("Nombre total de capteurs", min_value=1, value=1)
-        st.number_input("Nombre de rangées (champs)", min_value=1, value=1)
+        st.selectbox("Type", ["Capteurs plans", "Capteurs tubulaires", "Moquette solaire"], key="t_cap")
+    with cp2:
+        nb_capteurs = st.number_input("Nombre de capteurs", min_value=1, value=1)
+        nb_rangees = st.number_input("Nombre de rangées (champs)", min_value=1, value=1)
         st.number_input("Inclinaison (°)", value=45)
-    with c3:
-        st.markdown("**Orientation & Azimut**")
+    with cp3:
         azimut = st.number_input("Azimut (°)", value=0, help="0=Sud, -90=Est, 90=Ouest")
-        # Boussole visuelle simple
-        direction = "S"
-        if -22.5 < azimut <= 22.5: direction = "S"
-        elif 22.5 < azimut <= 67.5: direction = "SO"
-        elif 67.5 < azimut <= 112.5: direction = "O"
-        elif -67.5 < azimut <= -22.5: direction = "SE"
-        elif -112.5 < azimut <= -67.5: direction = "E"
-        
-        st.info(f"🧭 Orientation : **{direction}**")
-        st.caption("0°: Sud | -90°: Est | +90°: Ouest")
+        st.info(f"🧭 Azimut : {azimut}°")
 
-    # --- STATION SOLAIRE ---
+    # STATION SOLAIRE
     st.markdown('<p class="section-header">🔌 Station Solaire</p>', unsafe_allow_html=True)
     cs1, cs2 = st.columns(2)
     with cs1:
         st.markdown("**Circulateur Solaire**")
-        st.text_input("Marque", key="m_circ", placeholder="ex: Grundfos")
-        st.text_input("Référence", key="r_circ", placeholder="ex: Solar 25-120")
+        st.text_input("Marque", key="m_circ")
+        st.text_input("Référence", key="r_circ")
     with cs2:
         st.markdown("**Régulateur Solaire**")
         st.text_input("Marque", key="m_reg")
         st.text_input("Référence", key="r_reg")
 
-    # --- STOCKAGE ---
+    # STOCKAGE
     st.markdown('<p class="section-header">📦 Stockage Solaire</p>', unsafe_allow_html=True)
     nb_ballons = st.number_input("Nombre de ballons", min_value=1, value=1)
     if nb_ballons >= 2:
-        st.selectbox("Raccordement", ["En série", "En parallèle"], key="r_hydra")
+        st.selectbox("Raccordement hydraulique", ["En série", "En parallèle"], key="r_hydra")
     
     for i in range(int(nb_ballons)):
-        st.markdown(f"**Ballon n°{i+1}**")
+        st.markdown(f'<div class="ballon-card"><b>Ballon n°{i+1}</b>', unsafe_allow_html=True)
         cb1, cb2, cb3 = st.columns(3)
         cb1.text_input("Marque/Réf", key=f"mb_{i}")
         cb2.text_input("Volume (L)", key=f"vb_{i}")
         cb3.selectbox("Typologie", ["Sanitaire", "Eau technique"], key=f"tb_{i}")
+        cb1.number_input("Nb échangeurs", 0, 3, 1, key=f"eb_{i}")
+        cb2.selectbox("État visuel", ["Correct", "Non conforme", "HS"], key=f"etb_{i}")
+        st.markdown('</div>', unsafe_allow_html=True)
 
-    # --- DISTRIBUTION ---
+    # DISTRIBUTION
     st.markdown('<p class="section-header">🚿 Distribution Sanitaire</p>', unsafe_allow_html=True)
     cd1, cd2 = st.columns(2)
     with cd1:
         st.selectbox("Type", ["Bouclage sanitaire", "Traceur électrique", "Non présent"], key="dist")
-        st.radio("Conformité", ["Conforme", "Non conforme"], horizontal=True, key="dist_c")
+        st.radio("Conformité distribution", ["Conforme", "Non conforme"], horizontal=True, key="dist_c")
     with cd2:
-        st.text_area("Commentaires distribution")
+        st.text_area("Observations distribution")
 
-    # --- ÉTAT VISUEL GLOBAL (Graduation Professionnelle) ---
+    # ÉTAT VISUEL GLOBAL
     st.markdown('<p class="section-header">🌟 État Général du Matériel</p>', unsafe_allow_html=True)
-    score = st.select_slider(
-        "Note de l'état visuel (0=HS, 10=Neuf)",
-        options=list(range(11)),
-        value=5
-    )
-    
-    # Indicateur visuel de couleur
+    score = st.select_slider("Note (0=Mauvais, 10=Excellent)", options=list(range(11)), value=5)
     colors = ["#FF0000", "#FF4500", "#FF8C00", "#FFD700", "#ADFF2F", "#32CD32"]
-    idx = min(score // 2, 5)
-    st.markdown(f"""
-        <div style="background-color:{colors[idx]}; height:10px; width:100%; border-radius:5px;"></div>
-        <p style="text-align:center; font-weight:bold;">Indice de santé : {score}/10</p>
-    """, unsafe_allow_html=True)
+    st.markdown(f'<div style="background-color:{colors[min(score//2, 5)]}; height:15px; width:100%; border-radius:10px;"></div>', unsafe_allow_html=True)
 
-# --- 5. AUDIT TECHNIQUE ---
+# --- 6. AUDIT TECHNIQUE (TOUTES LES SECTIONS RESTAURÉES) ---
 st.divider()
 st.header("🔍 Audit Technique")
 
-# ... (Le reste de la logique d'audit reste identique à la v3, mais profite du nouveau design clair)
-# J'inclus ici la logique dynamique pour l'équilibrage vue précédemment
+# On définit les points pour chaque section
+sections_data = {
+    "📄 Documentation & Élec": ["Schéma d'exécution", "Schéma Electrique", "Mise à la terre", "Signalétique"],
+    "☀️ Capteurs & Toiture": [
+        "Intégrité des vitrages", "État de l'absorbeur", "Fixation châssis", "Étanchéité toiture", 
+        "Sondes capteurs : Position & Fixation", "Traversée de toiture", "Isolants UV"
+    ],
+    "🧪 Fluide Caloporteur": ["pH du fluide", "Protection Antigel (°C)", "Analyse visuelle"],
+    "💧 Circuit primaire": [
+        "Sens de circulation", "Vannes remplissage", "Dégazeur Aller", "Soupape conforme", 
+        "Vase : Pression gonflage", "Vase : Pression statique", "Vase : État membrane", "Disconnecteur"
+    ],
+    "📦 Stockage & Echangeur": ["Echangeur (Entartrage)", "Protection cathodique", "Calorifugeage", "Lyres anti-thermosiphon", "Soupape sécurité"],
+    "📊 Régulation & Métrologie": [
+        "Manomètre", "Débitmètre", "Sonde T1 (Cohérence)", "Sonde T2 (Cohérence)", 
+        "Consigne Max (°C)", "Décharge thermique", "COMPTEURS"
+    ]
+}
 
-pts_capteurs = ["Vitrages", "Absorbeur", "Fixation", "Étanchéité", "Sondes"]
-if 'nb_rangees' in st.session_state and st.session_state.nb_rangees > 1:
-    pts_capteurs.append("Équilibrage des champs")
+# Ajout dynamique de l'équilibrage si > 1 rangée
+if nb_rangees > 1:
+    sections_data["☀️ Capteurs & Toiture"].insert(4, "Équilibrage hydraulique des champs")
+    sections_data["☀️ Capteurs & Toiture"].insert(5, "Uniformité des retours par rangée")
 
-with st.expander("📁 Audit des Capteurs"):
-    for p in pts_capteurs:
-        st.markdown(f"**{p}**")
-        c1, c2, c3 = st.columns([1, 2, 1])
-        c1.selectbox("Statut", ["Conforme", "Défaut", "N/C"], key=f"s_{p}", label_visibility="collapsed")
-        c2.text_input("Note", key=f"o_{p}", label_visibility="collapsed")
-        c3.camera_input("📷", key=f"c_{p}", label_visibility="collapsed")
+def display_counter(label, type_c, key_id):
+    st.markdown(f'<div class="counter-block"><b>📊 {label}</b>', unsafe_allow_html=True)
+    c1, c2, c3 = st.columns([1, 1.5, 1])
+    with c1:
+        st.radio("Présent ?", ["Oui", "Non"], key=f"p_{key_id}", horizontal=True)
+        st.radio("Conforme ?", ["Oui", "Non"], key=f"c_{key_id}", horizontal=True)
+    with c2:
+        if type_c in ["ESU", "Calorimètre", "Électrique"]:
+            st.text_input("Index (kWh/MWh)", key=f"i_{key_id}")
+        if type_c in ["ESU", "Calorimètre", "Volumétrique", "Vecs"]:
+            st.text_input("Volume (m3)", key=f"v_{key_id}")
+        st.checkbox("Sondes en doigts de gant ?", key=f"d_{key_id}")
+    with c3: st.camera_input("Photo", key=f"cam_{key_id}")
+    st.markdown('</div>', unsafe_allow_html=True)
 
-# --- BOUTON FINAL ---
+# Boucle d'affichage des sections
+for sec, pts in sections_data.items():
+    with st.expander(f"📁 {sec}"):
+        for p in pts:
+            if p == "COMPTEURS":
+                display_counter("Compteur ESU", "ESU", "esu_f")
+                display_counter("Compteur ECS (Vecs)", "Vecs", "vecs_f")
+                # Gestion dynamique
+                ca1, ca2 = st.columns(2)
+                n_n = ca1.text_input("Nom nouveau compteur", key="n_n")
+                n_t = ca2.selectbox("Type", ["Calorimètre", "Volumétrique", "Électrique"], key="n_t")
+                if st.button("Ajouter ce compteur"):
+                    if n_n: st.session_state.extra_counters.append({"name": n_n, "type": n_t}); st.rerun()
+                for i, c in enumerate(st.session_state.extra_counters):
+                    display_counter(c['name'], c['type'], f"extra_{i}")
+            else:
+                st.markdown(f"**{p}**")
+                c1, c2, c3 = st.columns([1.5, 3, 1])
+                with c1:
+                    opts = ["Conforme", "Non Conforme", "N/C", "S/O"]
+                    if "Sonde" in p or "Cohérence" in p: opts = ["Oui", "Non", "N/C"]
+                    st.selectbox(f"Statut {p}", opts, key=f"s_{p}", label_visibility="collapsed")
+                with c2:
+                    st.text_input(f"Note {p}", key=f"o_{p}", label_visibility="collapsed", placeholder="Note / Mesure...")
+                with c3:
+                    st.camera_input(f"Photo {p}", key=f"ph_{p}", label_visibility="collapsed")
+
+# --- 7. FIN ---
 if st.button("🚀 CLÔTURER L'EXPERTISE"):
     st.balloons()
-    st.success("Rapport en cours de génération...")
+    st.success("Expertise terminée.")
