@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-from datetime import datetime
 import os
 
 # --- 1. CONFIGURATION ---
@@ -33,6 +32,8 @@ st.markdown(f"""
     [data-testid="stExpander"] {{ background-color: {card} !important; border: 1px solid {brd} !important; border-radius: 8px !important; }}
     h1, h2, h3, h4, label, p, span {{ color: {txt} !important; }}
     .stButton>button {{ background-color: #ff7f00 !important; color: white !important; font-weight: bold; border-radius: 8px; height: 3.5em; }}
+    /* Style pour les groupes de compteurs */
+    .counter-block {{ border-left: 4px solid #ff7f00; padding-left: 15px; margin: 10px 0; background-color: {bg}; border-radius: 5px; }}
     </style>
     """, unsafe_allow_html=True)
 
@@ -43,7 +44,7 @@ col_top1, col_top2 = st.columns([2, 1])
 with col_top1:
     nom_site = st.text_input("📍 Nom de l'opération", placeholder="Ex: Résidence du Rail")
     adr_site = st.text_input("🏠 Adresse & GPS", placeholder="Adresse / Coordonnées")
-    client_site = st.text_input("👤 Client / MOA", placeholder="Ex: ICF Habitat")
+    client_site = st.text_input("👤 Client / MOA")
 with col_top2:
     photo_main = st.camera_input("📸 Photo de garde", key="main_pic")
 
@@ -72,7 +73,6 @@ with st.expander("🛠️ Caractéristiques Matérielles", expanded=True):
         vol_bal = st.number_input("Volume total (L)", value=1000, step=100)
         m_reg, p_reg = row_mat("Marque/Réf Régulateur", "reg")
         m_app, p_app = row_mat("Marque/Réf Appoint", "app")
-        anode = st.selectbox("Protection cuve", ["ACI", "Magnésium", "Inox", "N/A"])
 
 # --- 6. AUDIT TECHNIQUE ---
 st.divider()
@@ -80,37 +80,16 @@ st.header("🔍 Audit Technique")
 
 sections = {
     "📄 Documentation et conformité électrique": [
-        "Schéma d'exécution", "Schéma Electrique", "Analyse Fonctionnelle", 
-        "Raccordements", "Mise à la terre", "Signalétique de sécurité", "Livret d'entretien"
+        "Schéma d'exécution", "Schéma Electrique", "Analyse Fonctionnelle", "Raccordements", "Mise à la terre", "Signalétique de sécurité"
     ],
     "☀️ Capteurs & Toit": [
-        "Intégrité des vitrages (OK / Fissuré / Condensation)",
-        "Absorbeur (Normal / Décoloré / Corrosion)",
-        "Fixation châssis (Stable / Corrosion / Jeu)",
-        "Étanchéité toiture (Conforme / Défaut / Non vérifiable)",
-        "Inclinaison et Orientation (Valeurs mesurées)",
-        "Masques solaires (Présence d'ombrage)",
-        "Absence de vannes d'isolement (Non conforme)", 
-        "Dispositifs d'équilibrage sur chaque champ", 
-        "État des systèmes d'équilibrage",
-        "Purgeurs solaires avec vannes d'isolement", 
-        "Sondes capteurs : Position & Fixation", 
-        "Sondes capteurs : Jonction & Câblage", 
-        "Traversée de toiture", "Accès sécurisé", "Isolants UV"
+        "Intégrité des vitrages", "Absorbeur", "Fixation châssis", "Étanchéité toiture", "Masques solaires", "Sondes capteurs : Position & Fixation", "Accès sécurisé"
     ],
-    "🧪 Fluide Caloporteur": [
-        "Prélèvement fluide", "pH du fluide", "Protection Antigel", "Analyse visuelle (Coloration)"
-    ],
+    "🧪 Fluide Caloporteur": ["pH du fluide", "Protection Antigel", "Analyse visuelle"],
     "💧 Circuit primaire solaire": [
-        "Sens circulation", "Vannes remplissage", "Dégazeur Aller", "Soupape conforme", 
-        "Bidon récupération", "Vase d'Expansion : Pression de gonflage (bar)",
-        "Vase d'Expansion : Pression statique du circuit (bar)",
-        "Vase d'Expansion : Vérification de la membrane (État : OK / HS)", "Disconnecteur"
+        "Sens circulation", "Vannes remplissage", "Dégazeur Aller", "Vase d'Expansion : Pression de gonflage (bar)", "Disconnecteur"
     ],
-    "📦 Stockage & Echangeur": [
-        "Echangeur (Entartrage)", "Protection cathodique", "Calorifugeage", 
-        "Lyres anti-thermosiphon", "Soupape sécurité"
-    ],
+    "📦 Stockage & Echangeur": ["Echangeur (Entartrage)", "Protection cathodique", "Calorifugeage", "Soupape sécurité"],
     "📊 Régulation solaire et métrologie": [
         "Manomètre", 
         "Débitmètre", 
@@ -118,8 +97,8 @@ sections = {
         "Sonde Ballon (T2)", 
         "Consigne de température max",
         "Paramètres de décharge thermique",
-        "Compteur d'énergie thermique",
-        "Delta T"
+        "Compteur énergie solaire utile (ESU)",
+        "Compteur ECS (Vecs)"
     ]
 }
 
@@ -127,46 +106,11 @@ all_results = []
 for sec, pts in sections.items():
     with st.expander(f"📁 {sec}"):
         for p in pts:
-            st.markdown(f"**{p}**")
-            c_res, c_obs, c_cam = st.columns([1.5, 3, 1])
-            
-            # --- LOGIQUE DE RÉPONSE ADAPTATIVE ---
-            verdict_label = "Verdict"
-            options = ["Conforme", "Non Conforme", "N/C", "S/O"]
-            
-            if "Sonde" in p:
-                verdict_label = "Valeur cohérente"
-                options = ["Oui", "Non", "N/C"]
-            elif "décharge thermique" in p:
-                verdict_label = "Statut"
-                options = ["Activé", "Désactivé", "S/O"]
-            elif "Consigne" in p or "Compteur" in p:
-                verdict_label = "État"
-                options = ["OK", "À vérifier", "Absent"]
-
-            with c_res:
-                res = st.selectbox(verdict_label, options, key=f"s_{p}")
-            
-            with c_obs:
-                # Placeholders spécifiques
-                ph_text = "Saisir note..."
-                if "Sonde" in p: ph_text = "Température lue (ex: 45.2°C)"
-                elif "Consigne" in p: ph_text = "Valeur en °C"
-                elif "Compteur" in p: ph_text = "Index actuel (kWh ou MWh)"
-                elif "gonflage" in p: ph_text = "ex: 2.5 bar"
-                
-                obs = st.text_input("Note / Mesure", key=f"o_{p}", placeholder=ph_text)
-            
-            with c_cam:
-                pic = st.camera_input("📷", key=f"c_{p}")
-                
-            all_results.append({"Section": sec, "Point": p, "Statut": res, "Obs": obs})
-
-# --- 7. GÉNÉRATION ---
-st.divider()
-if st.button("🚀 GÉNÉRER LE RAPPORT FINAL"):
-    if not nom_site:
-        st.error("Nom du site requis.")
-    else:
-        st.balloons()
-        st.success(f"Audit de {nom_site} validé.")
+            # Traitement spécial pour les compteurs ESU et ECS
+            if "Compteur" in p:
+                st.markdown(f"### 📊 {p}")
+                with st.container():
+                    st.markdown('<div class="counter-block">', unsafe_allow_html=True)
+                    c1, c2, c3 = st.columns([1, 1, 1])
+                    with c1:
+                        pres = st.radio(f"Présent ({p})", ["Oui", "Non"],
